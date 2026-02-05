@@ -16,8 +16,8 @@ An interactive visualization is available on [my website](https://ivanspirandell
 4. **Barycentric Subdivision**: Create interface simplices from partition barycenters
 5. **Filtration Values**: Assign values based on distances between color barycenters
 
-The algorithm works for any number of colors. Below is a visualization of the four colorings a single multicolored tetrahedron can have.
-The construction is written in C++. Bindings for Julia and Python are available. See the rest of the README for build instructions.
+The algorithm works for any number of colors. Below is a visualization of the possible interfaces of a multicolored tetrahedron.
+The interface construction is written in C++. Bindings for Julia and Python are available. See the rest of the README for build instructions.
 
 ![Tetrahedron partition examples](assets/tetrahedra_figure.png)
 
@@ -41,7 +41,7 @@ sudo apt-get install cmake libcgal-dev libeigen3-dev
 
 ### Build the Library
 
-Both Python and Julia bindings are built by default. Since Julia bindings require CxxWrap, you need to provide its path:
+Both Python and Julia bindings are built by default (can be turned off, see below). Since Julia bindings require CxxWrap, you need to provide its path:
 
 1. Install Julia dependencies:
 ```julia
