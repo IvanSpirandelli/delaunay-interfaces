@@ -12,7 +12,7 @@ DelaunayInterfaces/
 │   ├── types.hpp                   # Type definitions and aliases
 │   ├── interface_generation.hpp    # Main algorithm interface
 │   ├── barycentric_subdivision.hpp # Subdivision logic
-│   └── chromatic_partitioning.hpp  # Partitioning utilities
+│   └── chromatic_partitioning.hpp  # Partitioning utilities (header-only)
 │
 ├── src/                     # C++ implementation
 │   ├── interface_generation.cpp
