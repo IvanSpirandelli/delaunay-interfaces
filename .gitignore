@@ -1,0 +1,50 @@
+# Build directories
+build/
+cmake-build-*/
+*.build/
+
+# Compiled files
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exe
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.pytest_cache/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+compile_commands.json
+
+# Testing
+Testing/
+CTestTestfile.cmake
+
+.claude
+.cache
+julia/Manifest.toml
+CLAUDE.md
