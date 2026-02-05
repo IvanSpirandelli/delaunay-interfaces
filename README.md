@@ -94,7 +94,7 @@ make -j4
 cd delaunay-interfaces  # project root
 python3 -m venv venv
 source venv/bin/activate
-pip install numpy matplotlib jupyter
+python3 -m pip install numpy matplotlib jupyter
 ```
 
 2. Start Jupyter and open the notebook:
@@ -123,12 +123,17 @@ import delaunay_interfaces as di
 
 points = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
 colors = [1, 1, 2, 2]
-radii = []  # empty for unweighted Delaunay
 
 gen = di.InterfaceGenerator()
-surface = gen.compute_interface_surface(points, colors, radii, weighted=False, alpha=False)
 
-# surface.vertices: list of 3D barycenter coordinates
+# Unweighted Delaunay (default is weighted=True, alpha=True)
+surface = gen.compute_interface_surface(points, colors, radii=[], weighted=False, alpha=False)
+
+# Or with radii for weighted alpha complex
+radii = [0.5, 0.5, 0.5, 0.5]
+surface = gen.compute_interface_surface(points, colors, radii)
+
+# surface.vertices: Nx3 numpy array of barycenter coordinates
 # surface.filtration: list of (simplex_indices, filtration_value) pairs
 #   - len(simplex) == 1: vertex
 #   - len(simplex) == 2: edge
@@ -142,10 +147,16 @@ using DelaunayInterfaces
 
 points = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
 colors = [1, 1, 2, 2]
-radii = Float64[]
 
-gen = InterfaceGenerator()
-surface = compute_interface_surface(gen, points, colors, radii, false, false)
+# Unweighted Delaunay (no radii)
+surface = InterfaceSurface(points, colors)
+
+# Or with radii for weighted alpha complex
+radii = [0.5, 0.5, 0.5, 0.5]
+surface = InterfaceSurface(points, colors, radii)
+
+# Explicit options
+surface = InterfaceSurface(points, colors, radii; weighted=true, alpha=false)
 
 # surface.vertices: Vector of 3D coordinates
 # surface.filtration: Vector of (simplex, value) tuples
