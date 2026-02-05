@@ -114,6 +114,8 @@ Start Jupyter and open the notebook:
 jupyter notebook examples/julia_examples.ipynb
 ```
 
+The notebook contains the same examples as the python notebook, but with interactive visualizations.
+
 ## API
 
 ### Python
