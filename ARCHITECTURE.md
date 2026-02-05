@@ -16,8 +16,7 @@ DelaunayInterfaces/
 │
 ├── src/                     # C++ implementation
 │   ├── interface_generation.cpp
-│   ├── barycentric_subdivision.cpp
-│   └── chromatic_partitioning.cpp
+│   └── barycentric_subdivision.cpp
 │
 ├── python/                  # Python bindings (pybind11)
 │   ├── bindings.cpp
@@ -44,7 +43,6 @@ DelaunayInterfaces/
 │       C++ Core Library          │
 │  (interface_generation.cpp)     │
 │  (barycentric_subdivision.cpp)  │
-│  (chromatic_partitioning.cpp)   │
 └───────────────┬─────────────────┘
                 │
         ┌───────┴───────┐
@@ -76,8 +74,8 @@ Handles subdivision of multicolored tetrahedra into interface triangles.
 | `extend_scaffold_*` | Scaffold extension for partition types |
 | `get_filtration_value` | Distance-based filtration calculation |
 
-### chromatic_partitioning
-Groups vertices by color for chromatic analysis.
+### chromatic_partitioning (header-only)
+Groups vertices by color for chromatic analysis. Inline utilities in `chromatic_partitioning.hpp`.
 
 | Pattern | Description |
 |---------|-------------|
