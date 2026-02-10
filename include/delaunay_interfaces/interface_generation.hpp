@@ -5,13 +5,6 @@
 
 namespace delaunay_interfaces {
 
-// Multicolored simplices from alpha complex (tetrahedra + free lower-dimensional)
-struct MulticoloredSimplices {
-    Tetrahedra tetrahedra;
-    std::vector<std::vector<int>> free_triangles;
-    std::vector<std::vector<int>> free_edges;
-};
-
 class InterfaceGenerator {
 public:
     InterfaceGenerator() = default;
@@ -68,7 +61,7 @@ private:
 };
 
 // Barycentric subdivision functions
-std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
+std::tuple<Points, Filtration, MulticoloredSimplices> get_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii = {},

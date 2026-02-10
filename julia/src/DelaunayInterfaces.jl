@@ -20,6 +20,9 @@ export InterfaceGenerator, InterfaceSurfaceCxx
 export compute_interface_surface, get_multicolored_tetrahedra
 export num_vertices, num_simplices, is_weighted, is_alpha
 export get_vertex, get_all_vertices, get_simplex_vertices, get_simplex_value
+export num_tetrahedra, get_all_tetrahedra
+export num_free_triangles, get_all_free_triangles
+export num_free_edges, get_all_free_edges
 
 """
     InterfaceSurface
@@ -36,6 +39,9 @@ struct InterfaceSurface
     _cxx::InterfaceSurfaceCxx
     vertices::Vector{Vector{Float64}}
     filtration::Vector{Tuple{Vector{Int32}, Float64}}
+    tetrahedra::Matrix{Int}
+    free_triangles::Vector{Vector{Int}}
+    free_edges::Vector{Vector{Int}}
     weighted::Bool
     alpha::Bool
 end
@@ -57,7 +63,33 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
         filtration[i + 1] = (simplex_verts, simplex_val)
     end
 
-    InterfaceSurface(cxx_surface, vertices, filtration, is_weighted(cxx_surface), is_alpha(cxx_surface))
+    # Extract multicolored simplices (convert 0-based to 1-based)
+    n_tets = num_tetrahedra(cxx_surface)
+    if n_tets > 0
+        flat_tets = collect(get_all_tetrahedra(cxx_surface))
+        tetrahedra = reshape(flat_tets, 4, :)' .+ 1
+    else
+        tetrahedra = Matrix{Int}(undef, 0, 4)
+    end
+
+    n_free_tris = num_free_triangles(cxx_surface)
+    if n_free_tris > 0
+        flat_tris = collect(get_all_free_triangles(cxx_surface))
+        free_triangles = [flat_tris[i:i+2] .+ 1 for i in 1:3:length(flat_tris)]
+    else
+        free_triangles = Vector{Vector{Int}}()
+    end
+
+    n_free_edg = num_free_edges(cxx_surface)
+    if n_free_edg > 0
+        flat_edges = collect(get_all_free_edges(cxx_surface))
+        free_edges = [flat_edges[i:i+1] .+ 1 for i in 1:2:length(flat_edges)]
+    else
+        free_edges = Vector{Vector{Int}}()
+    end
+
+    InterfaceSurface(cxx_surface, vertices, filtration, tetrahedra, free_triangles, free_edges,
+                     is_weighted(cxx_surface), is_alpha(cxx_surface))
 end
 
 """

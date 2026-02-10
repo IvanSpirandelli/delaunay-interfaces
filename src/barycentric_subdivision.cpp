@@ -283,7 +283,7 @@ Filtration BarycentricSubdivision::get_filtration() const {
     return result;
 }
 
-std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
+std::tuple<Points, Filtration, MulticoloredSimplices> get_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -301,30 +301,33 @@ std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
 
     InterfaceGenerator generator;
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
+    MulticoloredSimplices mc_simplices;
 
     if (weighted && alpha) {
-        auto simplices = generator.get_multicolored_simplices_weighted_alpha(
+        mc_simplices = generator.get_multicolored_simplices_weighted_alpha(
             points, color_labels, radii);
 
-        for (const auto& tet : simplices.tetrahedra) {
+        for (const auto& tet : mc_simplices.tetrahedra) {
             subdivision.process_tetrahedron(tet);
         }
-        for (const auto& tri : simplices.free_triangles) {
+        for (const auto& tri : mc_simplices.free_triangles) {
             subdivision.process_simplex(tri);
         }
-        for (const auto& edge : simplices.free_edges) {
+        for (const auto& edge : mc_simplices.free_edges) {
             subdivision.process_simplex(edge);
         }
     } else {
         auto tetrahedra = generator.get_multicolored_tetrahedra(
             points, color_labels, radii, weighted, alpha);
 
+        mc_simplices.tetrahedra = tetrahedra;
+
         for (const auto& tet : tetrahedra) {
             subdivision.process_tetrahedron(tet);
         }
     }
 
-    return {subdivision.get_barycenters(), subdivision.get_filtration()};
+    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices)};
 }
 
 } // namespace delaunay_interfaces

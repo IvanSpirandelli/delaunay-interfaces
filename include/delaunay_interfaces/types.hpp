@@ -28,10 +28,18 @@ struct ComplexConfig {
     ComplexConfig(bool w, bool a) : weighted(w), alpha(a) {}
 };
 
+// Multicolored simplices from the complex (tetrahedra + free lower-dimensional)
+struct MulticoloredSimplices {
+    Tetrahedra tetrahedra;
+    std::vector<std::vector<int>> free_triangles;
+    std::vector<std::vector<int>> free_edges;
+};
+
 // Result structure
 struct InterfaceSurface {
     Points vertices;
     Filtration filtration;
+    MulticoloredSimplices simplices;
     bool weighted;
     bool alpha;
     bool lower_star;

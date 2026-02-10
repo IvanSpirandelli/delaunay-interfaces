@@ -76,6 +76,37 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
                 throw std::out_of_range("Simplex index out of range");
             }
             return std::get<1>(s.filtration[i]);
+        })
+        .method("num_tetrahedra", [](const InterfaceSurface& s) {
+            return static_cast<int>(s.simplices.tetrahedra.size());
+        })
+        .method("get_all_tetrahedra", [](const InterfaceSurface& s) {
+            std::vector<int> result;
+            result.reserve(s.simplices.tetrahedra.size() * 4);
+            for (const auto& tet : s.simplices.tetrahedra) {
+                for (int v : tet) result.push_back(v);
+            }
+            return result;
+        })
+        .method("num_free_triangles", [](const InterfaceSurface& s) {
+            return static_cast<int>(s.simplices.free_triangles.size());
+        })
+        .method("get_all_free_triangles", [](const InterfaceSurface& s) {
+            std::vector<int> result;
+            for (const auto& tri : s.simplices.free_triangles) {
+                for (int v : tri) result.push_back(v);
+            }
+            return result;
+        })
+        .method("num_free_edges", [](const InterfaceSurface& s) {
+            return static_cast<int>(s.simplices.free_edges.size());
+        })
+        .method("get_all_free_edges", [](const InterfaceSurface& s) {
+            std::vector<int> result;
+            for (const auto& edge : s.simplices.free_edges) {
+                for (int v : edge) result.push_back(v);
+            }
+            return result;
         });
 
     // InterfaceGenerator
