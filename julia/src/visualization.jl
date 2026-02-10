@@ -282,6 +282,7 @@ Create a side-by-side figure with point cloud and interface surface.
 # Keyword Arguments
 - `show_axis::Bool`: Show coordinate axes (default: `false`)
 - `show_wireframe::Bool`: Show wireframe overlay (default: `false`)
+- `show_multicolored_edges::Bool`: Show multicolored simplex edges on interface (default: `false`)
 - `interface_colormap`: Colormap for the interface (default: `:viridis`)
 - `point_colormap`: Colormap for the points (default: `:Dark2_4`)
 
@@ -295,6 +296,7 @@ function interface_and_point_cloud_figure(
     radii::Vector{Float64}=Float64[];
     show_axis::Bool=false,
     show_wireframe::Bool=false,
+    show_multicolored_edges::Bool=false,
     interface_colormap=DEFAULT_INTERFACE_COLORMAP,
     point_colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
@@ -312,6 +314,11 @@ function interface_and_point_cloud_figure(
         show_wireframe=show_wireframe,
         colormap=interface_colormap
     )
+
+    if show_multicolored_edges
+        draw_multicolored_edges!(scene_interface, points, color_labels, surface;
+            colormap=point_colormap)
+    end
 
     # Add titles
     Label(gl_points[1, 1, Top()], "Atom Centers"; fontsize=16)
