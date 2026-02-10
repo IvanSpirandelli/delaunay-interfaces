@@ -45,6 +45,9 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
         .method("is_alpha", [](const InterfaceSurface& s) {
             return s.alpha;
         })
+        .method("is_lower_star", [](const InterfaceSurface& s) {
+            return s.lower_star;
+        })
         .method("get_vertex", [](const InterfaceSurface& s, int i) {
             if (i < 0 || i >= static_cast<int>(s.vertices.size())) {
                 throw std::out_of_range("Vertex index out of range");
@@ -85,12 +88,13 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             jlcxx::ArrayRef<int> color_labels_arr,
             jlcxx::ArrayRef<double> radii_arr,
             bool weighted,
-            bool alpha
+            bool alpha,
+            bool lower_star
         ) {
             Points points = flat_points_to_cpp(flat_points, n_points);
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
             Radii radii = julia_array_to_vector(radii_arr);
-            return gen.compute_interface_surface(points, color_labels, radii, weighted, alpha);
+            return gen.compute_interface_surface(points, color_labels, radii, weighted, alpha, lower_star);
         })
         .method("get_multicolored_tetrahedra", [](
             InterfaceGenerator& gen,

@@ -9,7 +9,7 @@ namespace delaunay_interfaces {
 // Barycentric subdivision helper class
 class BarycentricSubdivision {
 public:
-    BarycentricSubdivision(const Points& points, const ColorLabels& color_labels);
+    BarycentricSubdivision(const Points& points, const ColorLabels& color_labels, bool lower_star = false);
 
     // Process a single tetrahedron
     void process_tetrahedron(const Tetrahedron& tet);
@@ -53,9 +53,14 @@ private:
 
     SimplexInfo get_or_create_simplex(const std::vector<std::vector<int>>& partitioning);
 
+    // Star filtration helpers
+    double star_value(double a, double b) const;
+    double star_value(std::initializer_list<double> vals) const;
+
     // Data members
     const Points& points_;
     const ColorLabels& color_labels_;
+    bool lower_star_;
     Points barycenters_;
 
     // Map from sorted vertex sets to (simplex_id, filtration_value)

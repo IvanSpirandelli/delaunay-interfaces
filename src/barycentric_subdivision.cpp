@@ -8,8 +8,17 @@ namespace delaunay_interfaces {
 
 BarycentricSubdivision::BarycentricSubdivision(
     const Points& points,
-    const ColorLabels& color_labels
-) : points_(points), color_labels_(color_labels) {}
+    const ColorLabels& color_labels,
+    bool lower_star
+) : points_(points), color_labels_(color_labels), lower_star_(lower_star) {}
+
+double BarycentricSubdivision::star_value(double a, double b) const {
+    return lower_star_ ? std::max(a, b) : std::min(a, b);
+}
+
+double BarycentricSubdivision::star_value(std::initializer_list<double> vals) const {
+    return lower_star_ ? std::max(vals) : std::min(vals);
+}
 
 Partition BarycentricSubdivision::get_chromatic_partitioning(const Tetrahedron& tet) const {
     return delaunay_interfaces::get_chromatic_partitioning(tet, color_labels_);
@@ -103,7 +112,7 @@ void BarycentricSubdivision::extend_scaffold_2_2(
         created.push_back(info.newly_created);
     }
 
-    // Compute barycenters hierarchically (matching Julia implementation)
+    // Compute barycenters hierarchically 
     std::vector<Point3D> new_barycenters(9);
 
     // Step 1: Compute edge barycenters (indices 0-3) from original points
@@ -167,13 +176,13 @@ void BarycentricSubdivision::extend_scaffold_2_2(
         }
     }
 
-    // Add edges dynamically based on subset relationships (matching Julia implementation)
+    // Add edges dynamically based on subset relationships
     for (size_t i = 0; i < flat_combs.size(); ++i) {
         for (size_t j = 0; j < flat_combs.size(); ++j) {
             if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                double val = std::min(vertices[i].second, vertices[j].second);
+                double val = star_value(vertices[i].second, vertices[j].second);
                 filtration_set_.insert({edge, val});
             }
         }
@@ -188,7 +197,7 @@ void BarycentricSubdivision::extend_scaffold_2_2(
     for (const auto& [i, j, k] : triangle_indices) {
         Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
         std::sort(tri.begin(), tri.end());
-        double val = std::min({vertices[i].second, vertices[j].second, vertices[k].second});
+        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
         filtration_set_.insert({tri, val});
     }
 
@@ -291,7 +300,7 @@ void BarycentricSubdivision::extend_scaffold_3_1(
             if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                double val = std::min(vertices[i].second, vertices[j].second);
+                double val = star_value(vertices[i].second, vertices[j].second);
                 filtration_set_.insert({edge, val});
             }
         }
@@ -306,7 +315,7 @@ void BarycentricSubdivision::extend_scaffold_3_1(
     for (const auto& [i, j, k] : triangle_indices) {
         Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
         std::sort(tri.begin(), tri.end());
-        double val = std::min({vertices[i].second, vertices[j].second, vertices[k].second});
+        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
         filtration_set_.insert({tri, val});
     }
 
@@ -411,7 +420,7 @@ void BarycentricSubdivision::extend_scaffold_2_1_1(
             if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                double val = std::min(vertices[i].second, vertices[j].second);
+                double val = star_value(vertices[i].second, vertices[j].second);
                 filtration_set_.insert({edge, val});
             }
         }
@@ -427,7 +436,7 @@ void BarycentricSubdivision::extend_scaffold_2_1_1(
     for (const auto& [i, j, k] : triangle_indices) {
         Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
         std::sort(tri.begin(), tri.end());
-        double val = std::min({vertices[i].second, vertices[j].second, vertices[k].second});
+        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
         filtration_set_.insert({tri, val});
     }
 
@@ -534,7 +543,7 @@ void BarycentricSubdivision::extend_scaffold_1_1_1_1(
             if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                double val = std::min(vertices[i].second, vertices[j].second);
+                double val = star_value(vertices[i].second, vertices[j].second);
                 filtration_set_.insert({edge, val});
             }
         }
@@ -550,7 +559,7 @@ void BarycentricSubdivision::extend_scaffold_1_1_1_1(
     for (const auto& [i, j, k] : triangle_indices) {
         Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
         std::sort(tri.begin(), tri.end());
-        double val = std::min({vertices[i].second, vertices[j].second, vertices[k].second});
+        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
         filtration_set_.insert({tri, val});
     }
 
@@ -600,7 +609,8 @@ std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
     const ColorLabels& color_labels,
     const Radii& radii,
     bool weighted,
-    bool alpha
+    bool alpha,
+    bool lower_star
 ) {
     if (points.size() != color_labels.size()) {
         throw std::invalid_argument("Each point must have a corresponding color_label");
@@ -613,7 +623,7 @@ std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
     InterfaceGenerator generator;
     auto tetrahedra = generator.get_multicolored_tetrahedra(points, color_labels, radii, weighted, alpha);
 
-    BarycentricSubdivision subdivision(points, color_labels);
+    BarycentricSubdivision subdivision(points, color_labels, lower_star);
 
     for (const auto& tet : tetrahedra) {
         subdivision.process_tetrahedron(tet);

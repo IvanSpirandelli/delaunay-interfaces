@@ -33,12 +33,14 @@ struct InterfaceSurfacePy {
     Filtration filtration;
     bool weighted;
     bool alpha;
+    bool lower_star;
 
     InterfaceSurfacePy(const InterfaceSurface& surface)
         : vertices(points_to_numpy(surface.vertices))
         , filtration(surface.filtration)
         , weighted(surface.weighted)
-        , alpha(surface.alpha) {}
+        , alpha(surface.alpha)
+        , lower_star(surface.lower_star) {}
 };
 
 // Wrapper class with numpy-friendly interface
@@ -52,10 +54,11 @@ public:
         const ColorLabels& color_labels,
         const Radii& radii = {},
         bool weighted = true,
-        bool alpha = true
+        bool alpha = true,
+        bool lower_star = false
     ) {
         Points points = numpy_to_points(points_arr);
-        auto surface = gen_.compute_interface_surface(points, color_labels, radii, weighted, alpha);
+        auto surface = gen_.compute_interface_surface(points, color_labels, radii, weighted, alpha, lower_star);
         return InterfaceSurfacePy(surface);
     }
 
@@ -77,10 +80,11 @@ std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtratio
     const ColorLabels& color_labels,
     const Radii& radii = {},
     bool weighted = true,
-    bool alpha = true
+    bool alpha = true,
+    bool lower_star = false
 ) {
     Points points = numpy_to_points(points_arr);
-    auto [vertices, filtration] = get_barycentric_subdivision_and_filtration(points, color_labels, radii, weighted, alpha);
+    auto [vertices, filtration] = get_barycentric_subdivision_and_filtration(points, color_labels, radii, weighted, alpha, lower_star);
     return {points_to_numpy(vertices), filtration};
 }
 
@@ -96,7 +100,9 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         .def_readonly("weighted", &InterfaceSurfacePy::weighted,
             "Whether weighted Delaunay/alpha complex was used")
         .def_readonly("alpha", &InterfaceSurfacePy::alpha,
-            "Whether alpha complex was used");
+            "Whether alpha complex was used")
+        .def_readonly("lower_star", &InterfaceSurfacePy::lower_star,
+            "Whether lower star filtration was used (max instead of min)");
 
     // Bind InterfaceGenerator (Python wrapper)
     py::class_<InterfaceGeneratorPy>(m, "InterfaceGenerator")
@@ -107,6 +113,7 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             py::arg("radii") = Radii{},
             py::arg("weighted") = true,
             py::arg("alpha") = true,
+            py::arg("lower_star") = false,
             "Compute the interface surface from colored points\n\n"
             "Parameters\n"
             "----------\n"
@@ -119,7 +126,9 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "weighted : bool, default=True\n"
             "    Use weighted Delaunay/alpha complex\n"
             "alpha : bool, default=True\n"
-            "    Use alpha complex (vs Delaunay complex)\n\n"
+            "    Use alpha complex (vs Delaunay complex)\n"
+            "lower_star : bool, default=False\n"
+            "    Use lower star filtration (max) instead of upper star (min)\n\n"
             "Returns\n"
             "-------\n"
             "InterfaceSurface\n"
@@ -156,6 +165,7 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         py::arg("radii") = Radii{},
         py::arg("weighted") = true,
         py::arg("alpha") = true,
+        py::arg("lower_star") = false,
         "Compute barycentric subdivision and filtration\n\n"
         "Parameters\n"
         "----------\n"
@@ -168,7 +178,9 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "weighted : bool, default=True\n"
         "    Use weighted Delaunay/alpha complex\n"
         "alpha : bool, default=True\n"
-        "    Use alpha complex (vs Delaunay complex)\n\n"
+        "    Use alpha complex (vs Delaunay complex)\n"
+        "lower_star : bool, default=False\n"
+        "    Use lower star filtration (max) instead of upper star (min)\n\n"
         "Returns\n"
         "-------\n"
         "tuple of (vertices, filtration)\n"

@@ -16,7 +16,8 @@ public:
         const ColorLabels& color_labels,
         const Radii& radii = {},
         bool weighted = true,
-        bool alpha = true
+        bool alpha = true,
+        bool lower_star = false
     );
 
     // Get multicolored tetrahedra
@@ -57,7 +58,8 @@ std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
     const ColorLabels& color_labels,
     const Radii& radii = {},
     bool weighted = true,
-    bool alpha = true
+    bool alpha = true,
+    bool lower_star = false
 );
 
 } // namespace delaunay_interfaces

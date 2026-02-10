@@ -100,6 +100,91 @@ void test_weighted_alpha() {
     }
 }
 
+void test_simple_delaunay_lower_star() {
+    std::cout << "Test: Simple Delaunay Complex (Lower Star)\n";
+
+    Points points = {
+        {0.0, 0.0, 0.0},
+        {1.0, 0.0, 0.0},
+        {0.5, 1.0, 0.0},
+        {0.5, 0.5, 1.0},
+        {2.0, 0.0, 0.0},
+        {2.5, 1.0, 0.0}
+    };
+
+    ColorLabels colors = {1, 1, 1, 2, 2, 2};
+
+    InterfaceGenerator generator;
+
+    try {
+        auto upper = generator.compute_interface_surface(points, colors, {}, false, false, false);
+        auto lower = generator.compute_interface_surface(points, colors, {}, false, false, true);
+
+        assert(lower.lower_star == true);
+        assert(upper.lower_star == false);
+        assert(lower.vertices.size() == upper.vertices.size());
+        assert(lower.filtration.size() == upper.filtration.size());
+
+        // For edges and triangles, lower star (max) values >= upper star (min) values
+        for (size_t i = 0; i < lower.filtration.size(); ++i) {
+            auto& [l_simplex, l_val] = lower.filtration[i];
+            auto& [u_simplex, u_val] = upper.filtration[i];
+            if (l_simplex.size() == 1) {
+                // Vertex filtration values are identical
+                assert(std::abs(l_val - u_val) < 1e-10);
+            }
+        }
+
+        std::cout << "  PASS\n";
+    } catch (const std::exception& e) {
+        std::cerr << "  FAIL: " << e.what() << "\n";
+        exit(1);
+    }
+}
+
+void test_weighted_alpha_lower_star() {
+    std::cout << "Test: Weighted Alpha Complex (Lower Star)\n";
+
+    Points points = {
+        {0.0, 0.0, 0.0},
+        {1.0, 0.0, 0.0},
+        {0.0, 1.0, 0.0},
+        {0.0, 0.0, 1.0},
+        {2.0, 0.0, 0.0},
+        {2.0, 1.0, 0.0}
+    };
+
+    ColorLabels colors = {1, 1, 1, 2, 2, 2};
+    Radii radii(points.size(), 0.3);
+
+    InterfaceGenerator generator;
+
+    try {
+        auto upper = generator.compute_interface_surface(points, colors, radii, true, true, false);
+        auto lower = generator.compute_interface_surface(points, colors, radii, true, true, true);
+
+        assert(lower.lower_star == true);
+        assert(lower.weighted == true);
+        assert(lower.alpha == true);
+        assert(lower.vertices.size() == upper.vertices.size());
+        assert(lower.filtration.size() == upper.filtration.size());
+
+        // Vertex values must match between upper and lower star
+        for (size_t i = 0; i < lower.filtration.size(); ++i) {
+            auto& [l_simplex, l_val] = lower.filtration[i];
+            auto& [u_simplex, u_val] = upper.filtration[i];
+            if (l_simplex.size() == 1) {
+                assert(std::abs(l_val - u_val) < 1e-10);
+            }
+        }
+
+        std::cout << "  PASS\n";
+    } catch (const std::exception& e) {
+        std::cerr << "  FAIL: " << e.what() << "\n";
+        exit(1);
+    }
+}
+
 void test_input_validation() {
     std::cout << "Test: Input Validation\n";
 
@@ -128,6 +213,8 @@ int main() {
         test_barycenter();
         test_simple_delaunay();
         test_weighted_alpha();
+        test_simple_delaunay_lower_star();
+        test_weighted_alpha_lower_star();
         test_input_validation();
 
         std::cout << "\nAll tests passed!\n";

@@ -210,13 +210,14 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const ColorLabels& color_labels,
     const Radii& radii,
     bool weighted,
-    bool alpha
+    bool alpha,
+    bool lower_star
 ) {
     auto [vertices, filtration] = get_barycentric_subdivision_and_filtration(
-        points, color_labels, radii, weighted, alpha
+        points, color_labels, radii, weighted, alpha, lower_star
     );
 
-    return InterfaceSurface{vertices, filtration, weighted, alpha};
+    return InterfaceSurface{vertices, filtration, weighted, alpha, lower_star};
 }
 
 } // namespace delaunay_interfaces

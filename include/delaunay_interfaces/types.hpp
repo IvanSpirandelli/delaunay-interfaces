@@ -34,6 +34,7 @@ struct InterfaceSurface {
     Filtration filtration;
     bool weighted;
     bool alpha;
+    bool lower_star;
 };
 
 } // namespace delaunay_interfaces

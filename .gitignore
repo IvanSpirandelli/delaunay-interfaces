@@ -48,3 +48,7 @@ CTestTestfile.cmake
 .cache
 julia/Manifest.toml
 CLAUDE.md
+formalism/
+
+
+
