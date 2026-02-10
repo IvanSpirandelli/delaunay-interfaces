@@ -1,4 +1,4 @@
-// Alpha Construction Tests — 1-1-1-1 split on a regular tetrahedron
+// Alpha Construction Tests on a regular tetrahedron
 // See ALPHA_CONSTRUCTION_TESTS.md for detailed derivation and expected values.
 
 #include <iostream>
@@ -16,6 +16,7 @@ static const Points tet_points = {
     { 0.0,  std::sqrt(2.0 / 3.0), 0.0}                  // v3: apex
 };
 
+static const ColorLabels colors_31 = {1, 1, 1, 2};
 static const ColorLabels colors_1111 = {1, 2, 3, 4};
 
 struct FiltrationCounts {
@@ -35,6 +36,105 @@ static FiltrationCounts count_filtration(const Filtration& f) {
     c.total = f.size();
     return c;
 }
+
+// ========================== 3-1 Coloring ==========================
+
+void test_31_alpha_0() {
+    std::cout << "Test: 3-1 alpha=0 (empty)\n";
+
+    Radii radii(4, 0.0);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_31, radii, true, true);
+
+    assert(verts.size() == 0);
+    assert(filtration.size() == 0);
+
+    std::cout << "  0 vertices, 0 simplices - PASS\n";
+}
+
+void test_31_alpha_051() {
+    std::cout << "Test: 3-1 alpha=0.51 (edges only)\n";
+
+    Radii radii(4, 0.51);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_31, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 3);
+    assert(c.vertices == 3);
+    assert(c.edges == 0);
+    assert(c.triangles == 0);
+    assert(c.total == 3);
+
+    std::cout << "  PASS\n";
+}
+
+void test_31_alpha_058() {
+    std::cout << "Test: 3-1 alpha=0.58 (edges + triangles)\n";
+
+    Radii radii(4, 0.58);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_31, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 6);
+    assert(c.vertices == 6);
+    assert(c.edges == 6);
+    assert(c.triangles == 0);
+    assert(c.total == 12);
+
+    std::cout << "  PASS\n";
+}
+
+void test_31_alpha_062() {
+    std::cout << "Test: 3-1 alpha=0.62 (full tet)\n";
+
+    Radii radii(4, 0.62);
+
+    auto [verts_alpha, filt_alpha] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_31, radii, true, true);
+
+    auto ca = count_filtration(filt_alpha);
+
+    std::cout << "  Alpha:   " << verts_alpha.size() << " vertices, "
+              << ca.vertices << "v " << ca.edges << "e " << ca.triangles << "t = "
+              << ca.total << " simplices\n";
+
+    auto [verts_del, filt_del] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_31, radii, true, false);
+
+    auto cd = count_filtration(filt_del);
+
+    std::cout << "  Delaunay: " << verts_del.size() << " vertices, "
+              << cd.vertices << "v " << cd.edges << "e " << cd.triangles << "t = "
+              << cd.total << " simplices\n";
+
+    assert(verts_alpha.size() == 7);
+    assert(ca.vertices == 7);
+    assert(ca.edges == 12);
+    assert(ca.triangles == 6);
+    assert(ca.total == 25);
+
+    assert(verts_alpha.size() == verts_del.size());
+    assert(ca.total == cd.total);
+
+    std::cout << "  PASS\n";
+}
+
+// ======================== 1-1-1-1 Coloring ========================
 
 // alpha = 0: nothing in the alpha complex
 void test_1111_alpha_0() {
@@ -143,10 +243,17 @@ void test_1111_alpha_062() {
 }
 
 int main() {
-    std::cout << "Alpha Construction Tests (1-1-1-1 regular tetrahedron)\n";
-    std::cout << "======================================================\n\n";
+    std::cout << "Alpha Construction Tests (regular tetrahedron)\n";
+    std::cout << "===============================================\n\n";
 
     try {
+        std::cout << "--- 3-1 Coloring ---\n";
+        test_31_alpha_0();
+        test_31_alpha_051();
+        test_31_alpha_058();
+        test_31_alpha_062();
+
+        std::cout << "\n--- 1-1-1-1 Coloring ---\n";
         test_1111_alpha_0();
         test_1111_alpha_051();
         test_1111_alpha_058();

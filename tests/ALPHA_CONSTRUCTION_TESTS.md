@@ -1,4 +1,4 @@
-# Alpha Construction Tests — 1-1-1-1 Split
+# Alpha Construction Tests
 
 ## Regular Tetrahedron (edge length 1)
 
@@ -21,6 +21,76 @@ Base centered at origin, apex on +y.
 | Tetrahedron | 1 | 3/8 = 0.375 | ≈ 0.6124 |
 
 Setting all radii to `r` simulates an unweighted alpha complex at threshold `r`: a simplex with circumradius² = C enters the weighted alpha complex when `C - r² ≤ 0`, i.e. when `r ≥ √C`.
+
+---
+
+## 3-1 Coloring
+
+Colors: `{1, 1, 1, 2}` — v0, v1, v2 share one color, v3 has a different color.
+
+Multicolored simplices are those containing at least one vertex from each color group. The monocolored triangle `{v0, v1, v2}` and its 3 edges are **not** multicolored.
+
+### r = 0 — Empty
+
+Nothing in the alpha complex.
+
+→ **0 barycenters, 0 simplices**
+
+### r = 0.51 — Edges Only
+
+6 edges enter the alpha complex (0.25 < 0.51² = 0.2601). Only 3 are multicolored: `{v0,v3}`, `{v1,v3}`, `{v2,v3}`. The 3 monocolored edges `{v0,v1}`, `{v0,v2}`, `{v1,v2}` are skipped.
+
+Each free bicolored edge produces **1 barycenter** at the midpoint.
+
+→ **3 barycenters, 3v = 3 simplices**
+
+### r = 0.58 — Edges + Triangles
+
+6 edges + 4 triangles enter the alpha complex (1/3 < 0.58² = 0.3364). No tetrahedron.
+
+Multicolored triangles (3 of 4):
+- `{v0, v1, v3}` — partition `{{v0,v1}, {v3}}` (2-1)
+- `{v0, v2, v3}` — partition `{{v0,v2}, {v3}}` (2-1)
+- `{v1, v2, v3}` — partition `{{v1,v2}, {v3}}` (2-1)
+
+The triangle `{v0, v1, v2}` is monocolored → skipped.
+
+Each free 2-1 triangle (e.g. `{v0, v1, v3}` with partition `{{v0,v1}, {v3}}`) produces:
+- **2 level-2 combinations**: `{{v0},{v3}}`, `{{v1},{v3}}` (edge midpoints)
+- **1 level-3 combination**: `{{v0,v1},{v3}}` (triangle center)
+
+Edge midpoints are shared across triangles (e.g. mid(v0,v3) appears in both `{v0,v1,v3}` and `{v0,v2,v3}`):
+- Unique barycenters: 3 edge midpoints + 3 triangle centers = **6**
+
+Filtration edges from subset inclusion (level-2 ⊂ level-3) within each triangle:
+- 2 edges per triangle × 3 triangles = **6 edges**
+- All distinct (each triangle center is unique)
+
+No filtration triangles: only 2 levels per free triangle.
+
+→ **6 barycenters, 6v + 6e = 12 simplices**
+
+### r = 0.62 — Full Tetrahedron
+
+The tetrahedron enters the alpha complex (3/8 < 0.62² = 0.3844). Processed as 3-1 partition `{{v0,v1,v2}, {v3}}`.
+
+Combinations (7 total):
+- **Level 2** (3): `{{v0},{v3}}`, `{{v1},{v3}}`, `{{v2},{v3}}`
+- **Level 3** (3): `{{v0,v1},{v3}}`, `{{v0,v2},{v3}}`, `{{v1,v2},{v3}}`
+- **Level 4** (1): `{{v0,v1,v2},{v3}}`
+
+Edges from subset inclusion (12 total):
+- Level 2 → Level 3: each level-3 contains 2 level-2 combos → 3 × 2 = **6**
+- Level 2 → Level 4: all 3 level-2 combos ⊂ level-4 → **3**
+- Level 3 → Level 4: all 3 level-3 combos ⊂ level-4 → **3**
+
+Maximal chains (level 2 → 3 → 4): 3 level-2 × 2 paths each = **6 triangles**
+
+Equivalent to the Delaunay (no alpha filtering) result.
+
+→ **7 barycenters, 7v + 12e + 6t = 25 simplices**
+
+---
 
 ## 1-1-1-1 Coloring
 
