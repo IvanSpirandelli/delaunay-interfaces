@@ -11,38 +11,23 @@ class BarycentricSubdivision {
 public:
     BarycentricSubdivision(const Points& points, const ColorLabels& color_labels, bool lower_star = false);
 
-    // Process a single tetrahedron
+    // Process a single tetrahedron (delegates to process_simplex)
     void process_tetrahedron(const Tetrahedron& tet);
+
+    // Process any simplex (generic: works for edges, triangles, tetrahedra)
+    void process_simplex(const std::vector<int>& simplex_vertices);
 
     // Get results
     const Points& get_barycenters() const { return barycenters_; }
     Filtration get_filtration() const;
 
 private:
-    // Chromatic partitioning
-    Partition get_chromatic_partitioning(const Tetrahedron& tet) const;
-
     // Barycenter computation
     Point3D get_barycenter(const std::vector<int>& vertices) const;
     Point3D get_barycenter_from_points(const std::vector<Point3D>& points) const;
 
     // Filtration value computation
     double compute_filtration_value(const Partition& partitioning) const;
-
-    // Scaffold extension for different partition types
-    void extend_scaffold_2_2(const std::vector<int>& part1, const std::vector<int>& part2);
-    void extend_scaffold_3_1(const std::vector<int>& part1, const std::vector<int>& part2);
-    void extend_scaffold_2_1_1(
-        const std::vector<int>& part1,
-        const std::vector<int>& part2,
-        const std::vector<int>& part3
-    );
-    void extend_scaffold_1_1_1_1(
-        const std::vector<int>& part1,
-        const std::vector<int>& part2,
-        const std::vector<int>& part3,
-        const std::vector<int>& part4
-    );
 
     // Get or create barycenter simplex
     struct SimplexInfo {
@@ -56,6 +41,7 @@ private:
     // Star filtration helpers
     double star_value(double a, double b) const;
     double star_value(std::initializer_list<double> vals) const;
+    double star_value(const std::vector<double>& vals) const;
 
     // Data members
     const Points& points_;

@@ -8,19 +8,19 @@ namespace delaunay_interfaces {
 
 // Utility functions for chromatic partitioning
 inline Partition get_chromatic_partitioning(
-    const Tetrahedron& tet,
+    const std::vector<int>& vertices,
     const ColorLabels& color_labels
 ) {
     std::map<int, std::vector<int>> parts_map;
 
-    for (int vertex : tet) {
+    for (int vertex : vertices) {
         int color = color_labels[vertex];
         parts_map[color].push_back(vertex);
     }
 
     Partition parts;
-    for (auto& [color, vertices] : parts_map) {
-        parts.push_back(vertices);
+    for (auto& [color, verts] : parts_map) {
+        parts.push_back(verts);
     }
 
     // Sort by size (descending)
@@ -29,6 +29,14 @@ inline Partition get_chromatic_partitioning(
     );
 
     return parts;
+}
+
+inline Partition get_chromatic_partitioning(
+    const Tetrahedron& tet,
+    const ColorLabels& color_labels
+) {
+    std::vector<int> vertices(tet.begin(), tet.end());
+    return get_chromatic_partitioning(vertices, color_labels);
 }
 
 inline Point3D compute_barycenter(const Points& points, const std::vector<int>& indices) {

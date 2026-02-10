@@ -5,6 +5,13 @@
 
 namespace delaunay_interfaces {
 
+// Multicolored simplices from alpha complex (tetrahedra + free lower-dimensional)
+struct MulticoloredSimplices {
+    Tetrahedra tetrahedra;
+    std::vector<std::vector<int>> free_triangles;
+    std::vector<std::vector<int>> free_edges;
+};
+
 class InterfaceGenerator {
 public:
     InterfaceGenerator() = default;
@@ -27,6 +34,14 @@ public:
         const Radii& radii = {},
         bool weighted = true,
         bool alpha = true
+    );
+
+    // Get all multicolored simplices from weighted alpha complex
+    // (tetrahedra + free triangles + free edges not covered by tetrahedra)
+    MulticoloredSimplices get_multicolored_simplices_weighted_alpha(
+        const Points& points,
+        const ColorLabels& color_labels,
+        const Radii& radii
     );
 
 private:

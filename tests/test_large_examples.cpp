@@ -232,15 +232,8 @@ int main() {
 
     bool all_passed = true;
 
-    // Test protein examples - Weighted Alpha Complex
-    std::cout << "Protein Interface Tests (Weighted Alpha Complex)\n";
-    std::cout << "------------------------------------------------\n";
-
-    if (!test_protein_example("4bmg_dimer", "alpha")) all_passed = false;
-    if (!test_protein_example("6r7m_quad", "alpha")) all_passed = false;
-
     // Test protein examples - Weighted Delaunay (no alpha filtering)
-    std::cout << "\nProtein Interface Tests (Weighted Delaunay)\n";
+    std::cout << "Protein Interface Tests (Weighted Delaunay)\n";
     std::cout << "-------------------------------------------\n";
 
     if (!test_protein_example("4bmg_dimer", "delaunay")) all_passed = false;

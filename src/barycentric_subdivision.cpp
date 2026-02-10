@@ -20,8 +20,13 @@ double BarycentricSubdivision::star_value(std::initializer_list<double> vals) co
     return lower_star_ ? std::max(vals) : std::min(vals);
 }
 
-Partition BarycentricSubdivision::get_chromatic_partitioning(const Tetrahedron& tet) const {
-    return delaunay_interfaces::get_chromatic_partitioning(tet, color_labels_);
+double BarycentricSubdivision::star_value(const std::vector<double>& vals) const {
+    if (vals.empty()) return 0.0;
+    double result = vals[0];
+    for (size_t i = 1; i < vals.size(); ++i) {
+        result = lower_star_ ? std::max(result, vals[i]) : std::min(result, vals[i]);
+    }
+    return result;
 }
 
 Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices) const {
@@ -37,32 +42,24 @@ Point3D BarycentricSubdivision::get_barycenter_from_points(const std::vector<Poi
 }
 
 double BarycentricSubdivision::compute_filtration_value(const Partition& partitioning) const {
-    if (partitioning.size() == 2) {
-        auto bc1 = get_barycenter(partitioning[0]);
-        auto bc2 = get_barycenter(partitioning[1]);
-        return euclidean_distance(bc1, bc2);
-    } else if (partitioning.size() == 3) {
-        auto bc1 = get_barycenter(partitioning[0]);
-        auto bc2 = get_barycenter(partitioning[1]);
-        auto bc3 = get_barycenter(partitioning[2]);
-        double a = euclidean_distance(bc1, bc2);
-        double b = euclidean_distance(bc1, bc3);
-        double c = euclidean_distance(bc2, bc3);
-        return (a + b + c) / 3.0;
-    } else if (partitioning.size() == 4) {
-        auto bc1 = get_barycenter(partitioning[0]);
-        auto bc2 = get_barycenter(partitioning[1]);
-        auto bc3 = get_barycenter(partitioning[2]);
-        auto bc4 = get_barycenter(partitioning[3]);
-        double a = euclidean_distance(bc1, bc2);
-        double b = euclidean_distance(bc1, bc3);
-        double c = euclidean_distance(bc1, bc4);
-        double d = euclidean_distance(bc2, bc3);
-        double e = euclidean_distance(bc2, bc4);
-        double f = euclidean_distance(bc3, bc4);
-        return (a + b + c + d + e + f) / 6.0;
+    size_t k = partitioning.size();
+    if (k < 2) return 0.0;
+
+    std::vector<Point3D> bcs;
+    bcs.reserve(k);
+    for (const auto& part : partitioning) {
+        bcs.push_back(get_barycenter(part));
     }
-    return 0.0;
+
+    double sum = 0.0;
+    int count = 0;
+    for (size_t i = 0; i < k; ++i) {
+        for (size_t j = i + 1; j < k; ++j) {
+            sum += euclidean_distance(bcs[i], bcs[j]);
+            ++count;
+        }
+    }
+    return sum / count;
 }
 
 BarycentricSubdivision::SimplexInfo BarycentricSubdivision::get_or_create_simplex(
@@ -86,100 +83,124 @@ BarycentricSubdivision::SimplexInfo BarycentricSubdivision::get_or_create_simple
     }
 }
 
-void BarycentricSubdivision::extend_scaffold_2_2(
-    const std::vector<int>& part1,
-    const std::vector<int>& part2
-) {
-    // 2-2 partitioning: [u,v] vs [x,y]
-    int u = part1[0], v = part1[1];
-    int x = part2[0], y = part2[1];
+void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
+    auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
+    size_t k = partition.size();
+    if (k < 2) return;
 
-    // Define the 9 multicolored combinations
-    // Indices 0-3: edges (2 vertices), 4-7: triangles (3 vertices), 8: tet (4 vertices)
-    std::vector<std::vector<std::vector<int>>> mc_combinations = {
-        {{u},{x}}, {{v},{x}}, {{v},{y}}, {{u},{y}},      // 0-3: edges
-        {{u,v},{x}}, {{v},{x,y}}, {{u,v},{y}}, {{u},{x,y}},  // 4-7: triangles
-        {{u,v},{x,y}}  // 8: tet
+    // --- 1. Enumerate all multicolored combinations ---
+    // For each subset I ⊆ {0..k-1} with |I| >= 2,
+    // enumerate all tuples of non-empty subsets S'_i ⊆ partition[i] for i ∈ I.
+
+    struct Combination {
+        std::vector<std::vector<int>> parts; // the partition for get_or_create_simplex
+        std::vector<int> flat;               // sorted union of all vertices
     };
 
-    std::vector<std::pair<int32_t, double>> vertices;
-    std::vector<bool> created;
+    std::vector<Combination> combinations;
 
-    // Create or get simplex IDs
-    for (const auto& comb : mc_combinations) {
-        auto info = get_or_create_simplex(comb);
-        vertices.push_back({info.id, info.value});
-        created.push_back(info.newly_created);
+    for (int mask = 3; mask < (1 << k); ++mask) {
+        if (__builtin_popcount(mask) < 2) continue;
+
+        // Collect part indices in this subset
+        std::vector<int> part_indices;
+        for (int i = 0; i < static_cast<int>(k); ++i) {
+            if (mask & (1 << i)) part_indices.push_back(i);
+        }
+
+        // Cross-product of non-empty subsets of each selected part
+        std::vector<std::vector<std::vector<int>>> partial = {{}};
+        for (int pi : part_indices) {
+            const auto& part = partition[pi];
+            int n = static_cast<int>(part.size());
+            std::vector<std::vector<std::vector<int>>> next;
+            for (int smask = 1; smask < (1 << n); ++smask) {
+                std::vector<int> subset;
+                for (int j = 0; j < n; ++j) {
+                    if (smask & (1 << j)) subset.push_back(part[j]);
+                }
+                for (const auto& prev : partial) {
+                    auto extended = prev;
+                    extended.push_back(subset);
+                    next.push_back(std::move(extended));
+                }
+            }
+            partial = std::move(next);
+        }
+
+        for (auto& tuple : partial) {
+            Combination comb;
+            comb.parts = std::move(tuple);
+            for (const auto& s : comb.parts) {
+                comb.flat.insert(comb.flat.end(), s.begin(), s.end());
+            }
+            std::sort(comb.flat.begin(), comb.flat.end());
+            combinations.push_back(std::move(comb));
+        }
     }
 
-    // Compute barycenters hierarchically 
-    std::vector<Point3D> new_barycenters(9);
+    size_t n = combinations.size();
 
-    // Step 1: Compute edge barycenters (indices 0-3) from original points
-    std::vector<int> edge_indices_list = {0, 1, 2, 3};
-    for (int idx : edge_indices_list) {
-        std::vector<int> all_verts;
-        for (const auto& part : mc_combinations[idx]) {
-            all_verts.insert(all_verts.end(), part.begin(), part.end());
-        }
-        new_barycenters[idx] = get_barycenter(all_verts);
+    // --- 2. Get or create simplices, compute filtration values ---
+    std::vector<std::pair<int32_t, double>> vertices(n);
+    std::vector<bool> created(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        auto info = get_or_create_simplex(combinations[i].parts);
+        vertices[i] = {info.id, info.value};
+        created[i] = info.newly_created;
     }
 
-    // Helper to flatten mc_combination to vertex set
-    auto flatten = [](const std::vector<std::vector<int>>& comb) {
-        std::vector<int> result;
-        for (const auto& part : comb) {
-            result.insert(result.end(), part.begin(), part.end());
-        }
-        std::sort(result.begin(), result.end());
-        return result;
-    };
+    // --- 3. Compute barycenters hierarchically ---
+    // Min-level (smallest flat set size) → barycenter from original points
+    // All others → average of min-level barycenters whose flat set ⊆ this flat set
 
-    // Helper to check if one set is subset of another
     auto is_subset = [](const std::vector<int>& small, const std::vector<int>& big) {
         return std::includes(big.begin(), big.end(), small.begin(), small.end());
     };
 
-    // Flatten all combinations for subset checks
-    std::vector<std::vector<int>> flat_combs(9);
-    for (size_t i = 0; i < mc_combinations.size(); ++i) {
-        flat_combs[i] = flatten(mc_combinations[i]);
+    size_t min_level = combinations[0].flat.size();
+    for (size_t i = 1; i < n; ++i) {
+        min_level = std::min(min_level, combinations[i].flat.size());
     }
 
-    // Step 2: Compute triangle barycenters (indices 4-7) from edge barycenters
-    std::vector<int> tri_indices_list = {4, 5, 6, 7};
-    for (int tri_idx : tri_indices_list) {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[tri_idx])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
-            }
+    std::vector<size_t> min_level_indices;
+    for (size_t i = 0; i < n; ++i) {
+        if (combinations[i].flat.size() == min_level) {
+            min_level_indices.push_back(i);
         }
-        new_barycenters[tri_idx] = get_barycenter_from_points(edge_bcs);
     }
 
-    // Step 3: Compute tet barycenter (index 8) from edge barycenters
-    {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[8])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
+    std::vector<Point3D> new_barycenters(n);
+
+    // Min-level barycenters: flat average of original points
+    for (size_t idx : min_level_indices) {
+        new_barycenters[idx] = get_barycenter(combinations[idx].flat);
+    }
+
+    // All other barycenters: average of min-level barycenters with flat ⊆ this flat
+    for (size_t i = 0; i < n; ++i) {
+        if (combinations[i].flat.size() == min_level) continue;
+        std::vector<Point3D> child_bcs;
+        for (size_t midx : min_level_indices) {
+            if (is_subset(combinations[midx].flat, combinations[i].flat)) {
+                child_bcs.push_back(new_barycenters[midx]);
             }
         }
-        new_barycenters[8] = get_barycenter_from_points(edge_bcs);
+        new_barycenters[i] = get_barycenter_from_points(child_bcs);
     }
 
     // Add newly created barycenters
-    for (size_t i = 0; i < created.size(); ++i) {
+    for (size_t i = 0; i < n; ++i) {
         if (created[i]) {
             barycenters_.push_back(new_barycenters[i]);
         }
     }
 
-    // Add edges dynamically based on subset relationships
-    for (size_t i = 0; i < flat_combs.size(); ++i) {
-        for (size_t j = 0; j < flat_combs.size(); ++j) {
-            if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
+    // --- 4. Add edges (subset inclusion on flat sets) ---
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            if (i != j && is_subset(combinations[i].flat, combinations[j].flat)) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
                 double val = star_value(vertices[i].second, vertices[j].second);
@@ -188,404 +209,62 @@ void BarycentricSubdivision::extend_scaffold_2_2(
         }
     }
 
-    // Add triangles (8 triangles as in Julia code)
-    std::vector<std::tuple<int, int, int>> triangle_indices = {
-        {8, 0, 4}, {8, 4, 1}, {8, 1, 5}, {8, 5, 2},
-        {8, 2, 6}, {8, 6, 3}, {8, 3, 7}, {8, 7, 0}
-    };
-
-    for (const auto& [i, j, k] : triangle_indices) {
-        Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
-        std::sort(tri.begin(), tri.end());
-        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
-        filtration_set_.insert({tri, val});
+    // --- 5. Add maximal chains as higher simplices ---
+    // Group combinations by level (flat set size)
+    std::map<size_t, std::vector<size_t>> levels;
+    for (size_t i = 0; i < n; ++i) {
+        levels[combinations[i].flat.size()].push_back(i);
     }
 
-    // Add vertices to filtration
-    for (const auto& [id, val] : vertices) {
-        filtration_set_.insert({{id}, val});
-    }
-}
-
-void BarycentricSubdivision::extend_scaffold_3_1(
-    const std::vector<int>& part1,
-    const std::vector<int>& part2
-) {
-    // 3-1 partitioning: [u,v,w] vs [x]
-    int u = part1[0], v = part1[1], w = part1[2];
-    int x = part2[0];
-
-    // Indices 0-2: edges (2 vertices), 3-5: triangles (3 vertices), 6: tet (4 vertices)
-    std::vector<std::vector<std::vector<int>>> mc_combinations = {
-        {{u},{x}}, {{v},{x}}, {{w},{x}},        // 0-2: edges
-        {{u,v},{x}}, {{v,w},{x}}, {{u,w},{x}},  // 3-5: triangles
-        {{u,v,w},{x}}  // 6: tet
-    };
-
-    std::vector<std::pair<int32_t, double>> vertices;
-    std::vector<bool> created;
-
-    for (const auto& comb : mc_combinations) {
-        auto info = get_or_create_simplex(comb);
-        vertices.push_back({info.id, info.value});
-        created.push_back(info.newly_created);
+    std::vector<size_t> level_keys;
+    for (const auto& [lv, _] : levels) {
+        level_keys.push_back(lv);
     }
 
-    // Compute barycenters hierarchically
-    std::vector<Point3D> new_barycenters(7);
-
-    // Helper to flatten mc_combination to vertex set
-    auto flatten = [](const std::vector<std::vector<int>>& comb) {
-        std::vector<int> result;
-        for (const auto& part : comb) {
-            result.insert(result.end(), part.begin(), part.end());
+    if (level_keys.size() >= 3) {
+        // Build chains: one element per level, each ⊂ next via flat inclusion
+        std::vector<std::vector<size_t>> chains;
+        for (size_t idx : levels[level_keys[0]]) {
+            chains.push_back({idx});
         }
-        std::sort(result.begin(), result.end());
-        return result;
-    };
 
-    // Helper to check if one set is subset of another
-    auto is_subset = [](const std::vector<int>& small, const std::vector<int>& big) {
-        return std::includes(big.begin(), big.end(), small.begin(), small.end());
-    };
-
-    // Flatten all combinations
-    std::vector<std::vector<int>> flat_combs(7);
-    for (size_t i = 0; i < mc_combinations.size(); ++i) {
-        flat_combs[i] = flatten(mc_combinations[i]);
-    }
-
-    // Step 1: Compute edge barycenters (indices 0-2) from original points
-    std::vector<int> edge_indices_list = {0, 1, 2};
-    for (int idx : edge_indices_list) {
-        std::vector<int> all_verts;
-        for (const auto& part : mc_combinations[idx]) {
-            all_verts.insert(all_verts.end(), part.begin(), part.end());
-        }
-        new_barycenters[idx] = get_barycenter(all_verts);
-    }
-
-    // Step 2: Compute triangle barycenters (indices 3-5) from edge barycenters
-    std::vector<int> tri_indices_list = {3, 4, 5};
-    for (int tri_idx : tri_indices_list) {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[tri_idx])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
+        for (size_t lv = 1; lv < level_keys.size(); ++lv) {
+            std::vector<std::vector<size_t>> new_chains;
+            for (const auto& chain : chains) {
+                size_t last = chain.back();
+                for (size_t idx : levels[level_keys[lv]]) {
+                    if (is_subset(combinations[last].flat, combinations[idx].flat)) {
+                        auto extended = chain;
+                        extended.push_back(idx);
+                        new_chains.push_back(std::move(extended));
+                    }
+                }
             }
+            chains = std::move(new_chains);
         }
-        new_barycenters[tri_idx] = get_barycenter_from_points(edge_bcs);
-    }
 
-    // Step 3: Compute tet barycenter (index 6) from edge barycenters
-    {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[6])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
+        // Each complete chain becomes a simplex (triangle for 3 levels, etc.)
+        for (const auto& chain : chains) {
+            Simplex simplex;
+            std::vector<double> vals;
+            for (size_t idx : chain) {
+                simplex.push_back(vertices[idx].first);
+                vals.push_back(vertices[idx].second);
             }
-        }
-        new_barycenters[6] = get_barycenter_from_points(edge_bcs);
-    }
-
-    for (size_t i = 0; i < created.size(); ++i) {
-        if (created[i]) {
-            barycenters_.push_back(new_barycenters[i]);
+            std::sort(simplex.begin(), simplex.end());
+            filtration_set_.insert({simplex, star_value(vals)});
         }
     }
 
-    // Add edges dynamically based on subset relationships (matching Julia implementation)
-    for (size_t i = 0; i < flat_combs.size(); ++i) {
-        for (size_t j = 0; j < flat_combs.size(); ++j) {
-            if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
-                Simplex edge = {vertices[i].first, vertices[j].first};
-                std::sort(edge.begin(), edge.end());
-                double val = star_value(vertices[i].second, vertices[j].second);
-                filtration_set_.insert({edge, val});
-            }
-        }
-    }
-
-    // Add triangles (6 triangles)
-    std::vector<std::tuple<int, int, int>> triangle_indices = {
-        {6, 0, 3}, {6, 3, 1}, {6, 1, 4},
-        {6, 4, 2}, {6, 2, 5}, {6, 5, 0}
-    };
-
-    for (const auto& [i, j, k] : triangle_indices) {
-        Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
-        std::sort(tri.begin(), tri.end());
-        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
-        filtration_set_.insert({tri, val});
-    }
-
-    for (const auto& [id, val] : vertices) {
-        filtration_set_.insert({{id}, val});
-    }
-}
-
-void BarycentricSubdivision::extend_scaffold_2_1_1(
-    const std::vector<int>& part1,
-    const std::vector<int>& part2,
-    const std::vector<int>& part3
-) {
-    // 2-1-1 partitioning: [a,b] vs [u] vs [x]
-    int a = part1[0], b = part1[1];
-    int u = part2[0];
-    int x = part3[0];
-
-    // Indices 0-4: edges (2 vertices), 5-8: triangles (3 vertices), 9: tet (4 vertices)
-    std::vector<std::vector<std::vector<int>>> mc_combinations = {
-        {{a},{u}}, {{a},{x}}, {{b},{x}}, {{b},{u}},  // 0-3: edges
-        {{u},{x}},  // 4: edge
-        {{a},{u},{x}}, {{a,b},{x}}, {{b},{u},{x}}, {{a,b},{u}},  // 5-8: triangles
-        {{a,b},{u},{x}}  // 9: tet
-    };
-
-    std::vector<std::pair<int32_t, double>> vertices;
-    std::vector<bool> created;
-
-    for (const auto& comb : mc_combinations) {
-        auto info = get_or_create_simplex(comb);
-        vertices.push_back({info.id, info.value});
-        created.push_back(info.newly_created);
-    }
-
-    // Compute barycenters hierarchically
-    std::vector<Point3D> new_barycenters(10);
-
-    // Helper to flatten mc_combination to vertex set
-    auto flatten = [](const std::vector<std::vector<int>>& comb) {
-        std::vector<int> result;
-        for (const auto& part : comb) {
-            result.insert(result.end(), part.begin(), part.end());
-        }
-        std::sort(result.begin(), result.end());
-        return result;
-    };
-
-    // Helper to check if one set is subset of another
-    auto is_subset = [](const std::vector<int>& small, const std::vector<int>& big) {
-        return std::includes(big.begin(), big.end(), small.begin(), small.end());
-    };
-
-    // Flatten all combinations
-    std::vector<std::vector<int>> flat_combs(10);
-    for (size_t i = 0; i < mc_combinations.size(); ++i) {
-        flat_combs[i] = flatten(mc_combinations[i]);
-    }
-
-    // Step 1: Compute edge barycenters (indices 0-4) from original points
-    std::vector<int> edge_indices_list = {0, 1, 2, 3, 4};
-    for (int idx : edge_indices_list) {
-        std::vector<int> all_verts;
-        for (const auto& part : mc_combinations[idx]) {
-            all_verts.insert(all_verts.end(), part.begin(), part.end());
-        }
-        new_barycenters[idx] = get_barycenter(all_verts);
-    }
-
-    // Step 2: Compute triangle barycenters (indices 5-8) from edge barycenters
-    std::vector<int> tri_indices_list = {5, 6, 7, 8};
-    for (int tri_idx : tri_indices_list) {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[tri_idx])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
-            }
-        }
-        new_barycenters[tri_idx] = get_barycenter_from_points(edge_bcs);
-    }
-
-    // Step 3: Compute tet barycenter (index 9) from edge barycenters
-    {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[9])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
-            }
-        }
-        new_barycenters[9] = get_barycenter_from_points(edge_bcs);
-    }
-
-    for (size_t i = 0; i < created.size(); ++i) {
-        if (created[i]) {
-            barycenters_.push_back(new_barycenters[i]);
-        }
-    }
-
-    // Add edges dynamically based on subset relationships (matching Julia implementation)
-    for (size_t i = 0; i < flat_combs.size(); ++i) {
-        for (size_t j = 0; j < flat_combs.size(); ++j) {
-            if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
-                Simplex edge = {vertices[i].first, vertices[j].first};
-                std::sort(edge.begin(), edge.end());
-                double val = star_value(vertices[i].second, vertices[j].second);
-                filtration_set_.insert({edge, val});
-            }
-        }
-    }
-
-    // Add triangles (10 triangles)
-    std::vector<std::tuple<int, int, int>> triangle_indices = {
-        {9, 0, 5}, {9, 5, 4}, {9, 4, 7}, {9, 7, 3},
-        {9, 3, 8}, {9, 8, 0}, {9, 2, 7}, {9, 5, 1},
-        {9, 1, 6}, {9, 6, 2}
-    };
-
-    for (const auto& [i, j, k] : triangle_indices) {
-        Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
-        std::sort(tri.begin(), tri.end());
-        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
-        filtration_set_.insert({tri, val});
-    }
-
-    for (const auto& [id, val] : vertices) {
-        filtration_set_.insert({{id}, val});
-    }
-}
-
-void BarycentricSubdivision::extend_scaffold_1_1_1_1(
-    const std::vector<int>& part1,
-    const std::vector<int>& part2,
-    const std::vector<int>& part3,
-    const std::vector<int>& part4
-) {
-    // 1-1-1-1 partitioning: [a] vs [i] vs [u] vs [x]
-    int a = part1[0];
-    int i_idx = part2[0];
-    int u = part3[0];
-    int x = part4[0];
-
-    // Indices 0-5: edges (2 vertices), 6-9: triangles (3 vertices), 10: tet (4 vertices)
-    std::vector<std::vector<std::vector<int>>> mc_combinations = {
-        {{a},{i_idx}}, {{a},{u}}, {{a},{x}},  // 0-2: edges
-        {{i_idx},{u}}, {{i_idx},{x}}, {{u},{x}},  // 3-5: edges
-        {{a},{i_idx},{u}}, {{a},{i_idx},{x}}, {{i_idx},{u},{x}}, {{a},{u},{x}},  // 6-9: triangles
-        {{a},{i_idx},{u},{x}}  // 10: tet
-    };
-
-    std::vector<std::pair<int32_t, double>> vertices;
-    std::vector<bool> created;
-
-    for (const auto& comb : mc_combinations) {
-        auto info = get_or_create_simplex(comb);
-        vertices.push_back({info.id, info.value});
-        created.push_back(info.newly_created);
-    }
-
-    // Compute barycenters hierarchically
-    std::vector<Point3D> new_barycenters(11);
-
-    // Helper to flatten mc_combination to vertex set
-    auto flatten = [](const std::vector<std::vector<int>>& comb) {
-        std::vector<int> result;
-        for (const auto& part : comb) {
-            result.insert(result.end(), part.begin(), part.end());
-        }
-        std::sort(result.begin(), result.end());
-        return result;
-    };
-
-    // Helper to check if one set is subset of another
-    auto is_subset = [](const std::vector<int>& small, const std::vector<int>& big) {
-        return std::includes(big.begin(), big.end(), small.begin(), small.end());
-    };
-
-    // Flatten all combinations
-    std::vector<std::vector<int>> flat_combs(11);
-    for (size_t i = 0; i < mc_combinations.size(); ++i) {
-        flat_combs[i] = flatten(mc_combinations[i]);
-    }
-
-    // Step 1: Compute edge barycenters (indices 0-5) from original points
-    std::vector<int> edge_indices_list = {0, 1, 2, 3, 4, 5};
-    for (int idx : edge_indices_list) {
-        std::vector<int> all_verts;
-        for (const auto& part : mc_combinations[idx]) {
-            all_verts.insert(all_verts.end(), part.begin(), part.end());
-        }
-        new_barycenters[idx] = get_barycenter(all_verts);
-    }
-
-    // Step 2: Compute triangle barycenters (indices 6-9) from edge barycenters
-    std::vector<int> tri_indices_list = {6, 7, 8, 9};
-    for (int tri_idx : tri_indices_list) {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[tri_idx])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
-            }
-        }
-        new_barycenters[tri_idx] = get_barycenter_from_points(edge_bcs);
-    }
-
-    // Step 3: Compute tet barycenter (index 10) from edge barycenters
-    {
-        std::vector<Point3D> edge_bcs;
-        for (int edge_idx : edge_indices_list) {
-            if (is_subset(flat_combs[edge_idx], flat_combs[10])) {
-                edge_bcs.push_back(new_barycenters[edge_idx]);
-            }
-        }
-        new_barycenters[10] = get_barycenter_from_points(edge_bcs);
-    }
-
-    for (size_t i = 0; i < created.size(); ++i) {
-        if (created[i]) {
-            barycenters_.push_back(new_barycenters[i]);
-        }
-    }
-
-    // Add edges dynamically based on subset relationships (matching Julia implementation)
-    for (size_t i = 0; i < flat_combs.size(); ++i) {
-        for (size_t j = 0; j < flat_combs.size(); ++j) {
-            if (i != j && is_subset(flat_combs[i], flat_combs[j])) {
-                Simplex edge = {vertices[i].first, vertices[j].first};
-                std::sort(edge.begin(), edge.end());
-                double val = star_value(vertices[i].second, vertices[j].second);
-                filtration_set_.insert({edge, val});
-            }
-        }
-    }
-
-    // Add triangles (12 triangles)
-    std::vector<std::tuple<int, int, int>> triangle_indices = {
-        {10, 3, 8}, {10, 8, 4}, {10, 4, 7}, {10, 7, 0},
-        {10, 0, 6}, {10, 6, 3}, {10, 9, 1}, {10, 5, 9},
-        {10, 8, 5}, {10, 1, 6}, {10, 9, 2}, {10, 2, 7}
-    };
-
-    for (const auto& [i, j, k] : triangle_indices) {
-        Simplex tri = {vertices[i].first, vertices[j].first, vertices[k].first};
-        std::sort(tri.begin(), tri.end());
-        double val = star_value({vertices[i].second, vertices[j].second, vertices[k].second});
-        filtration_set_.insert({tri, val});
-    }
-
+    // --- 6. Add vertices to filtration ---
     for (const auto& [id, val] : vertices) {
         filtration_set_.insert({{id}, val});
     }
 }
 
 void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
-    auto parts = get_chromatic_partitioning(tet);
-
-    if (parts.size() == 2) {
-        if (parts[0].size() == 2 && parts[1].size() == 2) {
-            extend_scaffold_2_2(parts[0], parts[1]);
-        } else if (parts[0].size() == 3 && parts[1].size() == 1) {
-            extend_scaffold_3_1(parts[0], parts[1]);
-        } else if (parts[0].size() == 1 && parts[1].size() == 3) {
-            extend_scaffold_3_1(parts[1], parts[0]);
-        } else {
-            throw std::runtime_error("Invalid 2-part partitioning");
-        }
-    } else if (parts.size() == 3) {
-        extend_scaffold_2_1_1(parts[0], parts[1], parts[2]);
-    } else if (parts.size() == 4) {
-        extend_scaffold_1_1_1_1(parts[0], parts[1], parts[2], parts[3]);
-    }
+    std::vector<int> vertices(tet.begin(), tet.end());
+    process_simplex(vertices);
 }
 
 Filtration BarycentricSubdivision::get_filtration() const {
@@ -621,12 +300,28 @@ std::pair<Points, Filtration> get_barycentric_subdivision_and_filtration(
     }
 
     InterfaceGenerator generator;
-    auto tetrahedra = generator.get_multicolored_tetrahedra(points, color_labels, radii, weighted, alpha);
-
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
 
-    for (const auto& tet : tetrahedra) {
-        subdivision.process_tetrahedron(tet);
+    if (weighted && alpha) {
+        auto simplices = generator.get_multicolored_simplices_weighted_alpha(
+            points, color_labels, radii);
+
+        for (const auto& tet : simplices.tetrahedra) {
+            subdivision.process_tetrahedron(tet);
+        }
+        for (const auto& tri : simplices.free_triangles) {
+            subdivision.process_simplex(tri);
+        }
+        for (const auto& edge : simplices.free_edges) {
+            subdivision.process_simplex(edge);
+        }
+    } else {
+        auto tetrahedra = generator.get_multicolored_tetrahedra(
+            points, color_labels, radii, weighted, alpha);
+
+        for (const auto& tet : tetrahedra) {
+            subdivision.process_tetrahedron(tet);
+        }
     }
 
     return {subdivision.get_barycenters(), subdivision.get_filtration()};
