@@ -92,6 +92,65 @@ Equivalent to the Delaunay (no alpha filtering) result.
 
 ---
 
+## 2-2 Coloring
+
+Colors: `{1, 1, 2, 2}` — v0, v1 are color 1; v2, v3 are color 2.
+
+Multicolored simplices must contain vertices of both colors. The monocolored edges `{v0,v1}` and `{v2,v3}` are skipped.
+
+### r = 0.51 — Edges Only
+
+6 edges in the alpha complex. 4 are multicolored: `{v0,v2}`, `{v0,v3}`, `{v1,v2}`, `{v1,v3}`. The 2 monocolored edges `{v0,v1}`, `{v2,v3}` are skipped.
+
+Each free bicolored edge produces **1 barycenter** at the midpoint.
+
+→ **4 barycenters, 4v = 4 simplices**
+
+### r = 0.58 — Edges + Triangles
+
+6 edges + 4 triangles in the alpha complex. All 4 triangles are multicolored (each is a 2-1 partition):
+
+| Triangle | Partition |
+|----------|-----------|
+| `{v0, v1, v2}` | `{{v0,v1}, {v2}}` |
+| `{v0, v1, v3}` | `{{v0,v1}, {v3}}` |
+| `{v0, v2, v3}` | `{{v0}, {v2,v3}}` |
+| `{v1, v2, v3}` | `{{v1}, {v2,v3}}` |
+
+Each free 2-1 triangle produces 2 level-2 (edge midpoints) + 1 level-3 (triangle center) combinations.
+
+Edge midpoints are shared across triangles (each multicolored edge appears in 2 of the 4 triangles):
+- Unique barycenters: 4 edge midpoints + 4 triangle centers = **8**
+
+Filtration edges from subset inclusion (level-2 ⊂ level-3) within each triangle:
+- 2 edges per triangle × 4 triangles = **8 edges**
+
+No filtration triangles: only 2 levels per free triangle.
+
+→ **8 barycenters, 8v + 8e = 16 simplices**
+
+### r = 0.62 — Full Tetrahedron
+
+The tetrahedron enters the alpha complex. Processed as 2-2 partition `{{v0,v1}, {v2,v3}}`.
+
+Combinations (9 total) — cross-product of non-empty subsets of each part:
+- **Level 2** (4): `{{v0},{v2}}`, `{{v0},{v3}}`, `{{v1},{v2}}`, `{{v1},{v3}}`
+- **Level 3** (4): `{{v0},{v2,v3}}`, `{{v1},{v2,v3}}`, `{{v0,v1},{v2}}`, `{{v0,v1},{v3}}`
+- **Level 4** (1): `{{v0,v1},{v2,v3}}`
+
+Edges from subset inclusion (16 total):
+- Level 2 → Level 3: each level-2 combo is contained in 2 level-3 combos → 4 × 2 = **8**
+- Level 2 → Level 4: all 4 level-2 combos ⊂ level-4 → **4**
+- Level 3 → Level 4: all 4 level-3 combos ⊂ level-4 → **4**
+
+Maximal chains (level 2 → 3 → 4): 4 level-2 × 2 paths each = **8 triangles**
+
+Equivalent to the Delaunay (no alpha filtering) result.
+
+→ **9 barycenters, 9v + 16e + 8t = 33 simplices**
+
+---
+
 ## 1-1-1-1 Coloring
 
 Each vertex gets a distinct color, so **every simplex is multicolored**. The barycentric subdivision of the interface depends on which simplices are present in the alpha complex.

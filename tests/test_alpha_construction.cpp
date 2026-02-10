@@ -17,6 +17,7 @@ static const Points tet_points = {
 };
 
 static const ColorLabels colors_31 = {1, 1, 1, 2};
+static const ColorLabels colors_22 = {1, 1, 2, 2};
 static const ColorLabels colors_1111 = {1, 2, 3, 4};
 
 struct FiltrationCounts {
@@ -127,6 +128,89 @@ void test_31_alpha_062() {
     assert(ca.edges == 12);
     assert(ca.triangles == 6);
     assert(ca.total == 25);
+
+    assert(verts_alpha.size() == verts_del.size());
+    assert(ca.total == cd.total);
+
+    std::cout << "  PASS\n";
+}
+
+// ========================== 2-2 Coloring ==========================
+
+void test_22_alpha_051() {
+    std::cout << "Test: 2-2 alpha=0.51 (edges only)\n";
+
+    Radii radii(4, 0.51);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_22, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 4);
+    assert(c.vertices == 4);
+    assert(c.edges == 0);
+    assert(c.triangles == 0);
+    assert(c.total == 4);
+
+    std::cout << "  PASS\n";
+}
+
+void test_22_alpha_058() {
+    std::cout << "Test: 2-2 alpha=0.58 (edges + triangles)\n";
+
+    Radii radii(4, 0.58);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_22, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 8);
+    assert(c.vertices == 8);
+    assert(c.edges == 8);
+    assert(c.triangles == 0);
+    assert(c.total == 16);
+
+    std::cout << "  PASS\n";
+}
+
+void test_22_alpha_062() {
+    std::cout << "Test: 2-2 alpha=0.62 (full tet)\n";
+
+    Radii radii(4, 0.62);
+
+    auto [verts_alpha, filt_alpha] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_22, radii, true, true);
+
+    auto ca = count_filtration(filt_alpha);
+
+    std::cout << "  Alpha:   " << verts_alpha.size() << " vertices, "
+              << ca.vertices << "v " << ca.edges << "e " << ca.triangles << "t = "
+              << ca.total << " simplices\n";
+
+    auto [verts_del, filt_del] = get_barycentric_subdivision_and_filtration(
+        tet_points, colors_22, radii, true, false);
+
+    auto cd = count_filtration(filt_del);
+
+    std::cout << "  Delaunay: " << verts_del.size() << " vertices, "
+              << cd.vertices << "v " << cd.edges << "e " << cd.triangles << "t = "
+              << cd.total << " simplices\n";
+
+    assert(verts_alpha.size() == 9);
+    assert(ca.vertices == 9);
+    assert(ca.edges == 16);
+    assert(ca.triangles == 8);
+    assert(ca.total == 33);
 
     assert(verts_alpha.size() == verts_del.size());
     assert(ca.total == cd.total);
@@ -252,6 +336,11 @@ int main() {
         test_31_alpha_051();
         test_31_alpha_058();
         test_31_alpha_062();
+
+        std::cout << "\n--- 2-2 Coloring ---\n";
+        test_22_alpha_051();
+        test_22_alpha_058();
+        test_22_alpha_062();
 
         std::cout << "\n--- 1-1-1-1 Coloring ---\n";
         test_1111_alpha_0();
