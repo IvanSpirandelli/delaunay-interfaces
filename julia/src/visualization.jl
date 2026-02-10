@@ -143,7 +143,7 @@ function draw_interface!(
     end
 
     if show_multicolored_edges
-        draw_multicolored_edges!(scene, points, color_labels, radii, surface.weighted, surface.alpha;
+        draw_multicolored_edges!(scene, points, color_labels, surface;
             colormap=point_colormap)
     end
 end
@@ -449,8 +449,8 @@ function sequence_figure(
 
     if show_multicolored_edges
         all_edge_data = [
-            compute_multicolored_edge_data(points_seq[i], labels_seq[i], radii_seq[i],
-                surfaces[i].weighted, surfaces[i].alpha; colormap=point_colormap)
+            compute_multicolored_edge_data(points_seq[i], labels_seq[i], surfaces[i];
+                colormap=point_colormap)
             for i in 1:n
         ]
         current_edge_points = @lift(all_edge_data[$slider.value][1])
@@ -518,29 +518,28 @@ function draw_multicolored_points!(
 end
 
 """
-    draw_multicolored_edges!(scene, points, color_labels, radii, weighted, alpha; kwargs...)
+    draw_multicolored_edges!(scene, points, color_labels, surface; kwargs...)
 
-Draw edges between multicolored tetrahedra vertices.
+Draw edges of all multicolored simplices (tetrahedra, free triangles, free edges).
 """
 function draw_multicolored_edges!(
     scene::LScene,
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
-    radii::Vector{Float64},
-    weighted::Bool,
-    alpha::Bool;
+    surface::InterfaceSurface;
     colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
     edge_points, edge_colors = compute_multicolored_edge_data(
-        points, color_labels, radii, weighted, alpha; colormap=colormap
+        points, color_labels, surface; colormap=colormap
     )
     linesegments!(scene, edge_points; color=edge_colors, linewidth=2)
 end
 
 """
-    compute_multicolored_edge_data(points, color_labels, radii, weighted, alpha; kwargs...)
+    compute_multicolored_edge_data(points, color_labels, surface; kwargs...)
 
-Compute edge geometry and colors for multicolored tetrahedra.
+Compute edge geometry and colors for all multicolored simplices
+(tetrahedra, free triangles, free edges) from the surface.
 
 # Returns
 - `Tuple{Vector{Point3f}, Vector{RGBA}}`: Edge endpoints and colors
@@ -548,14 +547,9 @@ Compute edge geometry and colors for multicolored tetrahedra.
 function compute_multicolored_edge_data(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
-    radii::Vector{Float64},
-    weighted::Bool,
-    alpha::Bool;
+    surface::InterfaceSurface;
     colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
-    tets = get_multicolored_tetrahedra_wrapper(points, color_labels, radii;
-        weighted=weighted, alpha=alpha)
-
     points3f = [Point3f(p...) for p in points]
     edge_points = Point3f[]
     edge_colors = RGBA[]
@@ -565,23 +559,31 @@ function compute_multicolored_edge_data(
         Dict(i => cm[i] for i in 1:DEFAULT_NUM_COLORS)
     end
 
-    # Helper to get all 6 edges from a tetrahedron
-    function tet_edges(tet)
-        return [
-            (tet[1], tet[2]), (tet[1], tet[3]), (tet[1], tet[4]),
-            (tet[2], tet[3]), (tet[2], tet[4]), (tet[3], tet[4])
-        ]
+    function add_edge!(p1_idx, p2_idx)
+        push!(edge_points, points3f[p1_idx], points3f[p2_idx])
+        c1 = get(color_map, color_labels[p1_idx], color_map[1])
+        c2 = get(color_map, color_labels[p2_idx], color_map[1])
+        push!(edge_colors, c1, c2)
     end
 
-    for row_idx in axes(tets, 1)
-        tet = tets[row_idx, :]
-        for (p1_idx, p2_idx) in tet_edges(tet)
-            push!(edge_points, points3f[p1_idx], points3f[p2_idx])
-
-            c1 = get(color_map, color_labels[p1_idx], color_map[1])
-            c2 = get(color_map, color_labels[p2_idx], color_map[1])
-            push!(edge_colors, c1, c2)
+    # Tetrahedron edges (6 per tet)
+    for row_idx in axes(surface.tetrahedra, 1)
+        tet = surface.tetrahedra[row_idx, :]
+        for i in 1:4, j in (i+1):4
+            add_edge!(tet[i], tet[j])
         end
+    end
+
+    # Free triangle edges (3 per triangle)
+    for tri in surface.free_triangles
+        for i in 1:3, j in (i+1):3
+            add_edge!(tri[i], tri[j])
+        end
+    end
+
+    # Free edges
+    for edge in surface.free_edges
+        add_edge!(edge[1], edge[2])
     end
 
     return edge_points, edge_colors

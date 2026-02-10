@@ -123,14 +123,15 @@ function InterfaceSurface(
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
     weighted::Bool=!isempty(radii),  # Default: weighted if radii provided
-    alpha::Bool=!isempty(radii)       # Default: alpha if radii provided
+    alpha::Bool=!isempty(radii),     # Default: alpha if radii provided
+    lower_star::Bool=false
 )
     gen = InterfaceGenerator()
     # Convert to CxxWrap-compatible types
     n_points = length(points)
     flat_points = reduce(vcat, points)
     color_labels_i32 = Int32.(color_labels)
-    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, radii, weighted, alpha)
+    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, radii, weighted, alpha, lower_star)
     return InterfaceSurface(cxx_surface)
 end
 
