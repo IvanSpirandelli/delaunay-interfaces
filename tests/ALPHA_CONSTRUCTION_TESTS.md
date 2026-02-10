@@ -295,3 +295,17 @@ Each tet gets a 2-2 partition: `{{v0,v3},{v1,v2}}` and `{{v0,v4},{v1,v2}}`. The 
 | 0.51 | 6 | 6v = 6 |
 | 0.58 | 13 | 13v + 14e = 27 |
 | 0.62 | 15 | 15v + 30e + 16t = 61 |
+
+---
+
+## Bipyramid — 1-1-1-1-1 (Shared 1-1-1 Face)
+
+Same bipyramid geometry. Colors: `{1, 2, 3, 4, 5}` — all distinct.
+
+Each tet is 1-1-1-1. The shared face `{v0,v1,v2}` (1-1-1 partition) contributes 4 shared barycenters (`{v0,v1}`, `{v0,v2}`, `{v1,v2}`, `{v0,v1,v2}`) and 3 shared edges. Result is **double the 1-1-1-1 counts minus 4 vertices and 3 edges**.
+
+| r | Barycenters | Simplices |
+|------|-------------|-----------|
+| 0.51 | 9 | 9v = 9 |
+| 0.58 | 16 | 16v + 21e = 37 |
+| 0.62 | 18 | 18v + 41e + 24t = 83 |

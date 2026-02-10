@@ -591,6 +591,92 @@ void test_bipyramid22_alpha_062() {
     std::cout << "  PASS\n";
 }
 
+// ================ Bipyramid — 1-1-1-1-1 Shared 1-1-1 Face ================
+// All distinct colors: double 1-1-1-1 minus 4 shared vertices and 3 shared edges
+
+static const ColorLabels colors_bipyramid_11111 = {1, 2, 3, 4, 5};
+
+void test_bipyramid11111_alpha_051() {
+    std::cout << "Test: bipyramid 1-1-1-1-1 alpha=0.51 (edges only)\n";
+
+    Radii radii(5, 0.51);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 9);
+    assert(c.vertices == 9);
+    assert(c.edges == 0);
+    assert(c.triangles == 0);
+    assert(c.total == 9);
+
+    std::cout << "  PASS\n";
+}
+
+void test_bipyramid11111_alpha_058() {
+    std::cout << "Test: bipyramid 1-1-1-1-1 alpha=0.58 (edges + triangles)\n";
+
+    Radii radii(5, 0.58);
+
+    auto [verts, filtration] = get_barycentric_subdivision_and_filtration(
+        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 16);
+    assert(c.vertices == 16);
+    assert(c.edges == 21);
+    assert(c.triangles == 0);
+    assert(c.total == 37);
+
+    std::cout << "  PASS\n";
+}
+
+void test_bipyramid11111_alpha_062() {
+    std::cout << "Test: bipyramid 1-1-1-1-1 alpha=0.62 (full tets)\n";
+
+    Radii radii(5, 0.62);
+
+    auto [verts_alpha, filt_alpha] = get_barycentric_subdivision_and_filtration(
+        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+
+    auto ca = count_filtration(filt_alpha);
+
+    std::cout << "  Alpha:   " << verts_alpha.size() << " vertices, "
+              << ca.vertices << "v " << ca.edges << "e " << ca.triangles << "t = "
+              << ca.total << " simplices\n";
+
+    auto [verts_del, filt_del] = get_barycentric_subdivision_and_filtration(
+        bipyramid_points, colors_bipyramid_11111, radii, true, false);
+
+    auto cd = count_filtration(filt_del);
+
+    std::cout << "  Delaunay: " << verts_del.size() << " vertices, "
+              << cd.vertices << "v " << cd.edges << "e " << cd.triangles << "t = "
+              << cd.total << " simplices\n";
+
+    assert(verts_alpha.size() == 18);
+    assert(ca.vertices == 18);
+    assert(ca.edges == 41);
+    assert(ca.triangles == 24);
+    assert(ca.total == 83);
+
+    assert(verts_alpha.size() == verts_del.size());
+    assert(ca.total == cd.total);
+
+    std::cout << "  PASS\n";
+}
+
 int main() {
     std::cout << "Alpha Construction Tests\n";
     std::cout << "========================\n\n";
@@ -627,6 +713,11 @@ int main() {
         test_bipyramid22_alpha_051();
         test_bipyramid22_alpha_058();
         test_bipyramid22_alpha_062();
+
+        std::cout << "\n--- Bipyramid 1-1-1-1-1 ---\n";
+        test_bipyramid11111_alpha_051();
+        test_bipyramid11111_alpha_058();
+        test_bipyramid11111_alpha_062();
 
         std::cout << "\nAll alpha construction tests passed!\n";
         return 0;
