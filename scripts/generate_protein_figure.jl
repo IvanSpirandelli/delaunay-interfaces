@@ -30,7 +30,7 @@ const CONF_COLORS = [
 # Load Protein Data
 # =============================================================================
 
-data_path = joinpath(@__DIR__, "..", "tests", "data", "ground_truth_4bmg_dimer_alpha.json")
+data_path = joinpath(@__DIR__, "..", "tests", "data", "ground_truth_4bmg_dimer_delaunay.json")
 protein_data = JSON.parsefile(data_path)
 
 inp = protein_data["input"]
