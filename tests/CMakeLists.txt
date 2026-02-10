@@ -34,5 +34,11 @@ target_link_libraries(test_custom_barycenter PRIVATE delaunay_interfaces)
 
 add_test(NAME CustomBarycenterTest COMMAND test_custom_barycenter)
 
+# Alpha complex construction tests
+add_executable(test_alpha_construction test_alpha_construction.cpp)
+target_link_libraries(test_alpha_construction PRIVATE delaunay_interfaces)
+
+add_test(NAME AlphaConstructionTest COMMAND test_alpha_construction)
+
 # You can add more sophisticated testing with Google Test or Catch2
 # For now, this is a minimal test setup
