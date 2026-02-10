@@ -267,3 +267,17 @@ Maximal chains (level 2 → 3 → 4): 4 × 3 = **12 triangles**
 Equivalent to the Delaunay (no alpha filtering) result.
 
 → **11 barycenters, 11v + 22e + 12t = 45 simplices**
+
+---
+
+## Bipyramid — 3-1 × 2 (Disjoint Doubling)
+
+Add v4 at (0, -√(2/3), 0) — mirror of the apex below the base plane. Colors: `{1, 1, 1, 2, 2}` (base = color 1, top + bottom = color 2).
+
+The Delaunay triangulation produces two tetrahedra sharing the monocolored base `{v0,v1,v2}`: upper `{v0,v1,v2,v3}` and lower `{v0,v1,v2,v4}`. Each has a 3-1 partition. Since v3 and v4 appear in disjoint multicolored faces, all barycenters are distinct — the result is exactly **double** the 3-1 counts.
+
+| r | Barycenters | Simplices |
+|------|-------------|-----------|
+| 0.51 | 6 | 6v = 6 |
+| 0.58 | 12 | 12v + 12e = 24 |
+| 0.62 | 14 | 14v + 24e + 12t = 50 |
