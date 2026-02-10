@@ -40,5 +40,9 @@ target_link_libraries(test_alpha_construction PRIVATE delaunay_interfaces)
 
 add_test(NAME AlphaConstructionTest COMMAND test_alpha_construction)
 
+# Speed test (not added to ctest — run manually)
+add_executable(test_speed test_speed.cpp)
+target_link_libraries(test_speed PRIVATE delaunay_interfaces)
+
 # You can add more sophisticated testing with Google Test or Catch2
 # For now, this is a minimal test setup
