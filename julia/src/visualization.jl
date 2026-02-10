@@ -115,7 +115,7 @@ Draw an interface surface with optional multicolored point overlay.
 - `show_wireframe::Bool`: Show wireframe overlay (default: `false`)
 - `show_barycenters::Bool`: Show barycenter points (default: `false`)
 - `show_multicolored_points::Bool`: Show input points (default: `false`)
-- `show_multicolored_edges::Bool`: Show multicolored edges (default: `false`)
+- `show_free_simplices::Bool`: Show free edges/vertices of the subdivision (default: `false`)
 - `colormap`: Colormap for the surface (default: `:viridis`)
 - `point_colormap`: Colormap for points (default: `:Dark2_4`)
 """
@@ -128,7 +128,7 @@ function draw_interface!(
     show_wireframe::Bool=false,
     show_barycenters::Bool=false,
     show_multicolored_points::Bool=false,
-    show_multicolored_edges::Bool=false,
+    show_free_simplices::Bool=false,
     colormap=DEFAULT_INTERFACE_COLORMAP,
     point_colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
@@ -142,9 +142,8 @@ function draw_interface!(
         draw_multicolored_points!(scene, points, color_labels; colormap=point_colormap)
     end
 
-    if show_multicolored_edges
-        draw_multicolored_edges!(scene, points, color_labels, surface;
-            colormap=point_colormap)
+    if show_free_simplices
+        draw_free_simplices!(scene, surface)
     end
 end
 
@@ -195,7 +194,7 @@ function interface_figure(
     show_wireframe::Bool=false,
     show_barycenters::Bool=false,
     show_multicolored_points::Bool=false,
-    show_multicolored_edges::Bool=false,
+    show_free_simplices::Bool=false,
     colormap=DEFAULT_INTERFACE_COLORMAP,
     point_colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
@@ -206,7 +205,7 @@ function interface_figure(
         show_wireframe=show_wireframe,
         show_barycenters=show_barycenters,
         show_multicolored_points=show_multicolored_points,
-        show_multicolored_edges=show_multicolored_edges,
+        show_free_simplices=show_free_simplices,
         colormap=colormap,
         point_colormap=point_colormap
     )
@@ -282,7 +281,7 @@ Create a side-by-side figure with point cloud and interface surface.
 # Keyword Arguments
 - `show_axis::Bool`: Show coordinate axes (default: `false`)
 - `show_wireframe::Bool`: Show wireframe overlay (default: `false`)
-- `show_multicolored_edges::Bool`: Show multicolored simplex edges on interface (default: `false`)
+- `show_free_simplices::Bool`: Show free edges/vertices of the subdivision (default: `false`)
 - `interface_colormap`: Colormap for the interface (default: `:viridis`)
 - `point_colormap`: Colormap for the points (default: `:Dark2_4`)
 
@@ -296,7 +295,7 @@ function interface_and_point_cloud_figure(
     radii::Vector{Float64}=Float64[];
     show_axis::Bool=false,
     show_wireframe::Bool=false,
-    show_multicolored_edges::Bool=false,
+    show_free_simplices::Bool=false,
     interface_colormap=DEFAULT_INTERFACE_COLORMAP,
     point_colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
@@ -315,9 +314,8 @@ function interface_and_point_cloud_figure(
         colormap=interface_colormap
     )
 
-    if show_multicolored_edges
-        draw_multicolored_edges!(scene_interface, points, color_labels, surface;
-            colormap=point_colormap)
+    if show_free_simplices
+        draw_free_simplices!(scene_interface, surface)
     end
 
     # Add titles
@@ -399,7 +397,7 @@ Create an interactive figure showing a sequence of interface surfaces.
 # Keyword Arguments
 - `show_wireframe::Bool`: Show wireframe overlay (default: `false`)
 - `show_multicolored_points::Bool`: Show input points (default: `false`)
-- `show_multicolored_edges::Bool`: Show multicolored edges (default: `false`)
+- `show_free_simplices::Bool`: Show free edges/vertices of the subdivision (default: `false`)
 - `global_colorrange::Bool`: Use global color range across all frames (default: `false`)
 - `interface_colormap`: Colormap for the interface (default: `:viridis`)
 - `point_colormap`: Colormap for the points (default: `:Dark2_4`)
@@ -414,7 +412,7 @@ function sequence_figure(
     radii_seq::Vector{Vector{Float64}};
     show_wireframe::Bool=false,
     show_multicolored_points::Bool=false,
-    show_multicolored_edges::Bool=false,
+    show_free_simplices::Bool=false,
     global_colorrange::Bool=false,
     interface_colormap=DEFAULT_INTERFACE_COLORMAP,
     point_colormap=DEFAULT_POINT_CLOUD_COLORMAP
@@ -454,15 +452,12 @@ function sequence_figure(
         wireframe!(scene, current_mesh; color=:white, linewidth=1)
     end
 
-    if show_multicolored_edges
-        all_edge_data = [
-            compute_multicolored_edge_data(points_seq[i], labels_seq[i], surfaces[i];
-                colormap=point_colormap)
-            for i in 1:n
-        ]
-        current_edge_points = @lift(all_edge_data[$slider.value][1])
-        current_edge_colors = @lift(all_edge_data[$slider.value][2])
-        linesegments!(scene, current_edge_points; color=current_edge_colors, linewidth=2)
+    if show_free_simplices
+        all_free_data = [compute_free_simplex_data(s) for s in surfaces]
+        current_free_edges = @lift(all_free_data[$slider.value][1])
+        current_free_verts = @lift(all_free_data[$slider.value][2])
+        linesegments!(scene, current_free_edges; color=:orange, linewidth=2)
+        scatter!(scene, current_free_verts; color=:red, markersize=10)
     end
 
     if show_multicolored_points
@@ -525,75 +520,81 @@ function draw_multicolored_points!(
 end
 
 """
-    draw_multicolored_edges!(scene, points, color_labels, surface; kwargs...)
+    draw_free_simplices!(scene, surface; edge_color=:orange, point_color=:red, linewidth=2, markersize=10)
 
-Draw edges of all multicolored simplices (tetrahedra, free triangles, free edges).
+Draw the free simplices of the interface surface — filtration edges not part of any
+triangle (as line segments between barycenters) and filtration vertices not part of
+any edge (as points at barycenter positions).
 """
-function draw_multicolored_edges!(
+function draw_free_simplices!(
     scene::LScene,
-    points::Vector{Vector{Float64}},
-    color_labels::Vector{Int},
     surface::InterfaceSurface;
-    colormap=DEFAULT_POINT_CLOUD_COLORMAP
+    edge_color=:orange,
+    point_color=:red,
+    linewidth::Real=2,
+    markersize::Real=10
 )
-    edge_points, edge_colors = compute_multicolored_edge_data(
-        points, color_labels, surface; colormap=colormap
-    )
-    linesegments!(scene, edge_points; color=edge_colors, linewidth=2)
+    free_edge_pts, free_vert_pts = compute_free_simplex_data(surface)
+
+    if !isempty(free_edge_pts)
+        linesegments!(scene, free_edge_pts; color=edge_color, linewidth=linewidth)
+    end
+
+    if !isempty(free_vert_pts)
+        scatter!(scene, free_vert_pts; color=point_color, markersize=markersize)
+    end
 end
 
 """
-    compute_multicolored_edge_data(points, color_labels, surface; kwargs...)
+    compute_free_simplex_data(surface::InterfaceSurface)
 
-Compute edge geometry and colors for all multicolored simplices
-(tetrahedra, free triangles, free edges) from the surface.
+Find filtration simplices that are not faces of higher-dimensional simplices.
 
 # Returns
-- `Tuple{Vector{Point3f}, Vector{RGBA}}`: Edge endpoints and colors
+- `Tuple{Vector{Point3f}, Vector{Point3f}}`: (free edge endpoints for linesegments, free vertex positions)
 """
-function compute_multicolored_edge_data(
-    points::Vector{Vector{Float64}},
-    color_labels::Vector{Int},
-    surface::InterfaceSurface;
-    colormap=DEFAULT_POINT_CLOUD_COLORMAP
-)
-    points3f = [Point3f(p...) for p in points]
-    edge_points = Point3f[]
-    edge_colors = RGBA[]
+function compute_free_simplex_data(surface::InterfaceSurface)
+    barycenters = [Point3f(v...) for v in surface.vertices]
 
-    color_map = let
-        cm = cgrad(colormap, DEFAULT_NUM_COLORS; categorical=true)
-        Dict(i => cm[i] for i in 1:DEFAULT_NUM_COLORS)
-    end
+    # Collect all edges and triangles from the filtration
+    edges = Set{Tuple{Int32,Int32}}()
+    triangle_edges = Set{Tuple{Int32,Int32}}()
+    edge_verts = Set{Int32}()
 
-    function add_edge!(p1_idx, p2_idx)
-        push!(edge_points, points3f[p1_idx], points3f[p2_idx])
-        c1 = get(color_map, color_labels[p1_idx], color_map[1])
-        c2 = get(color_map, color_labels[p2_idx], color_map[1])
-        push!(edge_colors, c1, c2)
-    end
-
-    # Tetrahedron edges (6 per tet)
-    for row_idx in axes(surface.tetrahedra, 1)
-        tet = surface.tetrahedra[row_idx, :]
-        for i in 1:4, j in (i+1):4
-            add_edge!(tet[i], tet[j])
+    for (simplex, _) in surface.filtration
+        if length(simplex) == 2
+            e = minmax(simplex[1], simplex[2])
+            push!(edges, e)
+        elseif length(simplex) == 3
+            for i in 1:3, j in (i+1):3
+                push!(triangle_edges, minmax(simplex[i], simplex[j]))
+            end
         end
     end
 
-    # Free triangle edges (3 per triangle)
-    for tri in surface.free_triangles
-        for i in 1:3, j in (i+1):3
-            add_edge!(tri[i], tri[j])
+    # Free edges: in filtration but not face of any triangle
+    free_edges = setdiff(edges, triangle_edges)
+    free_edge_pts = Point3f[]
+    for (i, j) in free_edges
+        push!(free_edge_pts, barycenters[i], barycenters[j])
+        push!(edge_verts, i, j)
+    end
+
+    # Also collect vertices that are endpoints of triangle edges
+    for (i, j) in triangle_edges
+        push!(edge_verts, i, j)
+    end
+
+    # Free vertices: in filtration but not endpoint of any edge
+    all_edge_verts = edge_verts
+    free_vert_pts = Point3f[]
+    for (simplex, _) in surface.filtration
+        if length(simplex) == 1 && !(simplex[1] in all_edge_verts)
+            push!(free_vert_pts, barycenters[simplex[1]])
         end
     end
 
-    # Free edges
-    for edge in surface.free_edges
-        add_edge!(edge[1], edge[2])
-    end
-
-    return edge_points, edge_colors
+    return free_edge_pts, free_vert_pts
 end
 
 # =============================================================================
@@ -859,6 +860,7 @@ end
 export generate_colored_mesh
 export draw_interface!, interface_figure
 export draw_point_cloud!, point_cloud_figure
+export draw_free_simplices!, compute_free_simplex_data
 export interface_and_point_cloud_figure
 export filtration_figure
 export sequence_figure
