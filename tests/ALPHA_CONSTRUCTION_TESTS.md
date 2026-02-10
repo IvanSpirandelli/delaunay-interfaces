@@ -281,3 +281,17 @@ The Delaunay triangulation produces two tetrahedra sharing the monocolored base 
 | 0.51 | 6 | 6v = 6 |
 | 0.58 | 12 | 12v + 12e = 24 |
 | 0.62 | 14 | 14v + 24e + 12t = 50 |
+
+---
+
+## Bipyramid — 2-2 × 2 (Shared Face)
+
+Same bipyramid geometry. Colors: `{1, 2, 2, 1, 1}` (v0, v3, v4 = color 1; v1, v2 = color 2).
+
+Each tet gets a 2-2 partition: `{{v0,v3},{v1,v2}}` and `{{v0,v4},{v1,v2}}`. The shared multicolored face `{v0,v1,v2}` (partition `{{v0},{v1,v2}}`) causes 3 barycenters to overlap (`{v0,v1}`, `{v0,v2}`, `{v0,v1,v2}`) and 2 filtration edges to overlap. Result is **double the 2-2 counts minus 3 vertices and 2 edges**.
+
+| r | Barycenters | Simplices |
+|------|-------------|-----------|
+| 0.51 | 6 | 6v = 6 |
+| 0.58 | 13 | 13v + 14e = 27 |
+| 0.62 | 15 | 15v + 30e + 16t = 61 |
