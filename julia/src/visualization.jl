@@ -309,7 +309,7 @@ function interface_and_point_cloud_figure(
 
     # Interface on the right
     gl_interface = GridLayout(fig[1, 2])
-    scene_interface = LScene(gl_interface[1, 1]; show_axis=show_axis, scenekw=(lights=[AmbientLight(RGBf(1.0, 1.0, 1.0))],))
+    scene_interface = LScene(gl_interface[1, 1]; show_axis=show_axis)
     draw_interface!(scene_interface, surface;
         show_wireframe=show_wireframe,
         colormap=interface_colormap
