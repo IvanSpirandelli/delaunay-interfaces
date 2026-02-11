@@ -50,13 +50,14 @@ function generate_colored_mesh(surface::InterfaceSurface; max_value::Real=Inf)
     points = [Point3f(v...) for v in surface.vertices]
     mesh = GeometryBasics.Mesh(points, faces)
 
-    # Extract vertex filtration values for coloring
-    vertex_colors = Float64[]
+    # Extract vertex filtration values for coloring, keyed by vertex ID
+    vertex_vals = Dict{Int, Float64}()
     for (simplex, val) in surface.filtration
         if length(simplex) == 1
-            push!(vertex_colors, val)
+            vertex_vals[simplex[1]] = val
         end
     end
+    vertex_colors = [get(vertex_vals, i, 0.0) for i in 1:length(surface.vertices)]
 
     return mesh, vertex_colors
 end
