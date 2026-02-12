@@ -449,19 +449,19 @@ void test_free_simplices_alpha() {
         auto simplices = generator.get_multicolored_simplices_weighted_alpha(
             points, colors, radii);
 
-        std::cout << "  Tetrahedra: " << simplices.tetrahedra.size() << "\n";
-        std::cout << "  Free triangles: " << simplices.free_triangles.size() << "\n";
-        std::cout << "  Free edges: " << simplices.free_edges.size() << "\n";
+        std::cout << "  Tetrahedra: " << simplices.generating_tetrahedra.size() << "\n";
+        std::cout << "  Free triangles: " << simplices.generating_free_triangles.size() << "\n";
+        std::cout << "  Free edges: " << simplices.generating_free_edges.size() << "\n";
 
         // The subdivision should work with all simplex types
         BarycentricSubdivision sub(points, colors);
-        for (const auto& tet : simplices.tetrahedra) {
+        for (const auto& tet : simplices.generating_tetrahedra) {
             sub.process_tetrahedron(tet);
         }
-        for (const auto& tri : simplices.free_triangles) {
+        for (const auto& tri : simplices.generating_free_triangles) {
             sub.process_simplex(tri);
         }
-        for (const auto& edge : simplices.free_edges) {
+        for (const auto& edge : simplices.generating_free_edges) {
             sub.process_simplex(edge);
         }
 
@@ -470,9 +470,9 @@ void test_free_simplices_alpha() {
         std::cout << "  Total filtration simplices: " << filtration.size() << "\n";
 
         // Basic sanity: we should have some output
-        size_t total_simplices = simplices.tetrahedra.size()
-            + simplices.free_triangles.size()
-            + simplices.free_edges.size();
+        size_t total_simplices = simplices.generating_tetrahedra.size()
+            + simplices.generating_free_triangles.size()
+            + simplices.generating_free_edges.size();
         if (total_simplices > 0) {
             assert(sub.get_barycenters().size() > 0);
             assert(filtration.size() > 0);

@@ -28,11 +28,11 @@ struct ComplexConfig {
     ComplexConfig(bool w, bool a) : weighted(w), alpha(a) {}
 };
 
-// Multicolored simplices from the complex (tetrahedra + free lower-dimensional)
+// Multicolored simplices from the complex (generating tetrahedra + free lower-dimensional)
 struct MulticoloredSimplices {
-    Tetrahedra tetrahedra;
-    std::vector<std::vector<int>> free_triangles;
-    std::vector<std::vector<int>> free_edges;
+    Tetrahedra generating_tetrahedra;
+    std::vector<std::vector<int>> generating_free_triangles;
+    std::vector<std::vector<int>> generating_free_edges;
 };
 
 // Result structure

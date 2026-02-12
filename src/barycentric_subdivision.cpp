@@ -307,20 +307,20 @@ std::tuple<Points, Filtration, MulticoloredSimplices> get_barycentric_subdivisio
         mc_simplices = generator.get_multicolored_simplices_weighted_alpha(
             points, color_labels, radii);
 
-        for (const auto& tet : mc_simplices.tetrahedra) {
+        for (const auto& tet : mc_simplices.generating_tetrahedra) {
             subdivision.process_tetrahedron(tet);
         }
-        for (const auto& tri : mc_simplices.free_triangles) {
+        for (const auto& tri : mc_simplices.generating_free_triangles) {
             subdivision.process_simplex(tri);
         }
-        for (const auto& edge : mc_simplices.free_edges) {
+        for (const auto& edge : mc_simplices.generating_free_edges) {
             subdivision.process_simplex(edge);
         }
     } else {
         auto tetrahedra = generator.get_multicolored_tetrahedra(
             points, color_labels, radii, weighted, alpha);
 
-        mc_simplices.tetrahedra = tetrahedra;
+        mc_simplices.generating_tetrahedra = tetrahedra;
 
         for (const auto& tet : tetrahedra) {
             subdivision.process_tetrahedron(tet);

@@ -31,9 +31,9 @@ Eigen::MatrixXd points_to_numpy(const Points& points) {
 struct InterfaceSurfacePy {
     Eigen::MatrixXd vertices;
     Filtration filtration;
-    Tetrahedra tetrahedra;
-    std::vector<std::vector<int>> free_triangles;
-    std::vector<std::vector<int>> free_edges;
+    Tetrahedra generating_tetrahedra;
+    std::vector<std::vector<int>> generating_free_triangles;
+    std::vector<std::vector<int>> generating_free_edges;
     bool weighted;
     bool alpha;
     bool lower_star;
@@ -41,9 +41,9 @@ struct InterfaceSurfacePy {
     InterfaceSurfacePy(const InterfaceSurface& surface)
         : vertices(points_to_numpy(surface.vertices))
         , filtration(surface.filtration)
-        , tetrahedra(surface.simplices.tetrahedra)
-        , free_triangles(surface.simplices.free_triangles)
-        , free_edges(surface.simplices.free_edges)
+        , generating_tetrahedra(surface.simplices.generating_tetrahedra)
+        , generating_free_triangles(surface.simplices.generating_free_triangles)
+        , generating_free_edges(surface.simplices.generating_free_edges)
         , weighted(surface.weighted)
         , alpha(surface.alpha)
         , lower_star(surface.lower_star) {}
@@ -103,12 +103,12 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "Barycenter vertices as Nx3 numpy array")
         .def_readonly("filtration", &InterfaceSurfacePy::filtration,
             "List of (simplex, filtration_value) tuples")
-        .def_readonly("tetrahedra", &InterfaceSurfacePy::tetrahedra,
-            "Multicolored tetrahedra (list of 4-element arrays)")
-        .def_readonly("free_triangles", &InterfaceSurfacePy::free_triangles,
-            "Free multicolored triangles not covered by tetrahedra")
-        .def_readonly("free_edges", &InterfaceSurfacePy::free_edges,
-            "Free multicolored edges not covered by tetrahedra or triangles")
+        .def_readonly("generating_tetrahedra", &InterfaceSurfacePy::generating_tetrahedra,
+            "Generating multicolored tetrahedra (list of 4-element arrays)")
+        .def_readonly("generating_free_triangles", &InterfaceSurfacePy::generating_free_triangles,
+            "Generating free multicolored triangles not covered by tetrahedra")
+        .def_readonly("generating_free_edges", &InterfaceSurfacePy::generating_free_edges,
+            "Generating free multicolored edges not covered by tetrahedra or triangles")
         .def_readonly("weighted", &InterfaceSurfacePy::weighted,
             "Whether weighted Delaunay/alpha complex was used")
         .def_readonly("alpha", &InterfaceSurfacePy::alpha,
