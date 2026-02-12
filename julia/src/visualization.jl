@@ -456,9 +456,11 @@ function sequence_figure(
     if show_free_simplices
         all_free_data = [compute_free_simplex_data(s) for s in surfaces]
         current_free_edges = @lift(all_free_data[$slider.value][1])
-        current_free_verts = @lift(all_free_data[$slider.value][2])
-        linesegments!(scene, current_free_edges; color=:orange, linewidth=2)
-        scatter!(scene, current_free_verts; color=:red, markersize=10)
+        current_free_edge_colors = @lift(all_free_data[$slider.value][2])
+        current_free_verts = @lift(all_free_data[$slider.value][3])
+        current_free_vert_colors = @lift(all_free_data[$slider.value][4])
+        linesegments!(scene, current_free_edges; color=current_free_edge_colors, colormap=interface_colormap, colorrange=colorrange, linewidth=2)
+        scatter!(scene, current_free_verts; color=current_free_vert_colors, colormap=interface_colormap, colorrange=colorrange, markersize=10)
     end
 
     if show_multicolored_points
@@ -521,28 +523,36 @@ function draw_multicolored_points!(
 end
 
 """
-    draw_free_simplices!(scene, surface; edge_color=:orange, point_color=:red, linewidth=2, markersize=10)
+    draw_free_simplices!(scene, surface; colormap=:viridis, colorrange=nothing, linewidth=2, markersize=10)
 
 Draw the free simplices of the interface surface — filtration edges not part of any
 triangle (as line segments between barycenters) and filtration vertices not part of
 any edge (as points at barycenter positions).
+
+Colors are derived from vertex filtration values using the same colormap as the surface.
 """
 function draw_free_simplices!(
     scene::LScene,
     surface::InterfaceSurface;
-    edge_color=:orange,
-    point_color=:red,
+    colormap=DEFAULT_INTERFACE_COLORMAP,
+    colorrange=nothing,
     linewidth::Real=2,
     markersize::Real=10
 )
-    free_edge_pts, free_vert_pts = compute_free_simplex_data(surface)
+    free_edge_pts, free_edge_colors, free_vert_pts, free_vert_colors = compute_free_simplex_data(surface)
+
+    # Compute colorrange from all vertex filtration values if not provided
+    if isnothing(colorrange)
+        all_vals = [val for (simplex, val) in surface.filtration if length(simplex) == 1]
+        colorrange = isempty(all_vals) ? (0.0, 1.0) : (minimum(all_vals), maximum(all_vals))
+    end
 
     if !isempty(free_edge_pts)
-        linesegments!(scene, free_edge_pts; color=edge_color, linewidth=linewidth)
+        linesegments!(scene, free_edge_pts; color=free_edge_colors, colormap=colormap, colorrange=colorrange, linewidth=linewidth)
     end
 
     if !isempty(free_vert_pts)
-        scatter!(scene, free_vert_pts; color=point_color, markersize=markersize)
+        scatter!(scene, free_vert_pts; color=free_vert_colors, colormap=colormap, colorrange=colorrange, markersize=markersize)
     end
 end
 
@@ -552,10 +562,19 @@ end
 Find filtration simplices that are not faces of higher-dimensional simplices.
 
 # Returns
-- `Tuple{Vector{Point3f}, Vector{Point3f}}`: (free edge endpoints for linesegments, free vertex positions)
+- `Tuple{Vector{Point3f}, Vector{Float64}, Vector{Point3f}, Vector{Float64}}`:
+  (free edge endpoints, edge endpoint filtration values, free vertex positions, vertex filtration values)
 """
 function compute_free_simplex_data(surface::InterfaceSurface)
     barycenters = [Point3f(v...) for v in surface.vertices]
+
+    # Build vertex filtration values
+    vertex_vals = Dict{Int, Float64}()
+    for (simplex, val) in surface.filtration
+        if length(simplex) == 1
+            vertex_vals[simplex[1]] = val
+        end
+    end
 
     # Collect all edges and triangles from the filtration
     edges = Set{Tuple{Int32,Int32}}()
@@ -576,8 +595,10 @@ function compute_free_simplex_data(surface::InterfaceSurface)
     # Free edges: in filtration but not face of any triangle
     free_edges = setdiff(edges, triangle_edges)
     free_edge_pts = Point3f[]
+    free_edge_colors = Float64[]
     for (i, j) in free_edges
         push!(free_edge_pts, barycenters[i], barycenters[j])
+        push!(free_edge_colors, get(vertex_vals, Int(i), 0.0), get(vertex_vals, Int(j), 0.0))
         push!(edge_verts, i, j)
     end
 
@@ -589,13 +610,15 @@ function compute_free_simplex_data(surface::InterfaceSurface)
     # Free vertices: in filtration but not endpoint of any edge
     all_edge_verts = edge_verts
     free_vert_pts = Point3f[]
-    for (simplex, _) in surface.filtration
+    free_vert_colors = Float64[]
+    for (simplex, val) in surface.filtration
         if length(simplex) == 1 && !(simplex[1] in all_edge_verts)
             push!(free_vert_pts, barycenters[simplex[1]])
+            push!(free_vert_colors, val)
         end
     end
 
-    return free_edge_pts, free_vert_pts
+    return free_edge_pts, free_edge_colors, free_vert_pts, free_vert_colors
 end
 
 # =============================================================================
