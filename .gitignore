@@ -43,6 +43,7 @@ compile_commands.json
 # Testing
 Testing/
 CTestTestfile.cmake
+tests/failed-random-generated-tests/
 
 .claude
 .cache
