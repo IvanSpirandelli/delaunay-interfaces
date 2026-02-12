@@ -621,121 +621,68 @@ function compute_free_simplex_data(surface::InterfaceSurface)
     return free_edge_pts, free_edge_colors, free_vert_pts, free_vert_colors
 end
 
-# =============================================================================
-# Tetrahedron Visualization (Dual-Panel)
-# =============================================================================
-
 """
-    tetrahedron_subdivision_figure(points, colors, surface; title="")
+    draw_multicolored_edges!(scene, points, colors, surface; linewidth=2)
 
-Create a dual-panel figure for tetrahedron visualization:
-- Left (LScene): Viridis-colored interface with wireframe, points, and tetrahedron edges
-- Right (Axis3): Monocolor interface with wireframe and barycenter dots
-
-# Arguments
-- `points::Vector{Vector{Float64}}`: Tetrahedron vertices (4 points)
-- `colors::Vector{Int}`: Color labels for each vertex
-- `surface::InterfaceSurface`: The computed interface surface
-
-# Keyword Arguments
-- `title::String`: Figure title (default: "")
-
-# Returns
-- `Figure`: The GLMakie figure
+Draw the multicolored edges of the generating complex between input points.
+Collects unique bicolored edges from generating tetrahedra, free triangles,
+and free edges, then draws them as gradient-colored line segments.
 """
-function tetrahedron_subdivision_figure(
+function draw_multicolored_edges!(
+    scene::LScene,
     points::Vector{Vector{Float64}},
     colors::Vector{Int},
     surface::InterfaceSurface;
-    title::String=""
+    linewidth::Real=2
 )
-    fig = Figure()
+    pts = [Point3f(p...) for p in points]
+    mc_edges = Set{Tuple{Int,Int}}()
 
-    # Left: LScene with viridis distance-colored interface
-    Label(fig[1, 1, Top()], "Tetrahedron and Interface"; fontsize=16)
-    scene_left = LScene(fig[1, 1]; show_axis=false)
-
-    vertices = surface.vertices
-    triangles = [Int.(simplex) for (simplex, _) in surface.filtration if length(simplex) == 3]
-
-    if !isempty(triangles) && !isempty(vertices)
-        points_gb = [Point3f(v...) for v in vertices]
-        faces_gb = [TriangleFace(t...) for t in triangles]
-        mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
-
-        # Get filtration values for vertices (0-simplices) to color by distance
-        vertex_vals = Dict{Int, Float64}()
-        for (simplex, val) in surface.filtration
-            if length(simplex) == 1
-                vertex_vals[simplex[1]] = val
-            end
+    for row in eachrow(surface.generating_tetrahedra)
+        verts = collect(row)
+        for i in 1:4, j in (i+1):4
+            colors[verts[i]] != colors[verts[j]] && push!(mc_edges, minmax(verts[i], verts[j]))
         end
-        mesh_colors = [get(vertex_vals, i, 0.0) for i in 1:length(vertices)]
-
-        mesh!(scene_left, mesh_obj;
-            color=mesh_colors,
-            colormap=:viridis,
-            colorrange=(minimum(mesh_colors), maximum(mesh_colors)),
-            shading=NoShading
-        )
-        wireframe!(scene_left, mesh_obj; color=:white, linewidth=1)
     end
 
-    # Draw original points colored by label
-    pts_mat = reduce(hcat, points)'
-    point_colors = [CONF_COLORMAP[mod1(c, 4)] for c in colors]
-    scatter!(scene_left, pts_mat[:, 1], pts_mat[:, 2], pts_mat[:, 3];
-             color=point_colors, markersize=20)
+    for tri in surface.generating_free_triangles
+        for i in 1:3, j in (i+1):3
+            colors[tri[i]] != colors[tri[j]] && push!(mc_edges, minmax(tri[i], tri[j]))
+        end
+    end
 
-    # Draw tetrahedron edges with gradient colors
-    n = length(points)
+    for edge in surface.generating_free_edges
+        push!(mc_edges, minmax(edge[1], edge[2]))
+    end
+
+    isempty(mc_edges) && return
+
     edge_pts = Point3f[]
-    edge_colors = RGBA[]
-    for i in 1:n, j in (i+1):n
-        p1, p2 = points[i], points[j]
-        push!(edge_pts, Point3f(p1...), Point3f(p2...))
-        c1 = CONF_COLORMAP[mod1(colors[i], 4)]
-        c2 = CONF_COLORMAP[mod1(colors[j], 4)]
-        push!(edge_colors, RGBA(c1), RGBA(c2))
+    edge_cols = RGBA[]
+    for (i, j) in mc_edges
+        push!(edge_pts, pts[i], pts[j])
+        push!(edge_cols, RGBA(CONF_COLORMAP[mod1(colors[i], 4)]),
+                         RGBA(CONF_COLORMAP[mod1(colors[j], 4)]))
     end
-    linesegments!(scene_left, edge_pts; color=edge_colors, linewidth=2)
-
-    # Right: Axis3 with monocolor mesh, wireframe, and vertices
-    ax2 = Axis3(fig[1, 2]; aspect=:data, title="Interface and Barycenters")
-
-    if !isempty(triangles) && !isempty(vertices)
-        points_gb = [Point3f(v...) for v in vertices]
-        faces_gb = [TriangleFace(t...) for t in triangles]
-        mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
-
-        # Mesh with transparency and NO shading
-        mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7), shading=NoShading)
-
-        # Wireframe
-        wireframe!(ax2, mesh_obj; color=:black, linewidth=1)
-
-        # Red barycenter dots
-        bary_pts = reduce(hcat, vertices)'
-        scatter!(ax2, bary_pts[:, 1], bary_pts[:, 2], bary_pts[:, 3];
-                 color=:red, markersize=12)
-    end
-
-    if !isempty(title)
-        Label(fig[0, :], title; fontsize=20)
-    end
-
-    return fig
+    linesegments!(scene, edge_pts; color=edge_cols, linewidth=linewidth)
 end
 
-"""
-    pointcloud_subdivision_figure(points, colors, surface; title="")
+# =============================================================================
+# Dual-Panel Visualization
+# =============================================================================
 
-Create a dual-panel figure for point cloud visualization:
-- Left (LScene): Viridis-colored interface with wireframe and points
-- Right (Axis3): Monocolor interface with wireframe and barycenter dots (with lighting)
+"""
+    subdivision_figure(points, colors, surface; title="")
+
+Create a dual-panel figure for any colored point cloud:
+- Left (LScene): Viridis-colored interface with wireframe, input points, and multicolored edges
+- Right (Axis3): Monocolor interface with wireframe and barycenter dots
+
+Works for tetrahedra, bipyramids, and large point clouds alike — edges are drawn
+only for bicolored edges present in the alpha/Delaunay complex (not all pairs).
 
 # Arguments
-- `points::Vector{Vector{Float64}}`: Point cloud coordinates
+- `points::Vector{Vector{Float64}}`: Input point coordinates
 - `colors::Vector{Int}`: Color labels for each point
 - `surface::InterfaceSurface`: The computed interface surface
 
@@ -745,7 +692,7 @@ Create a dual-panel figure for point cloud visualization:
 # Returns
 - `Figure`: The GLMakie figure
 """
-function pointcloud_subdivision_figure(
+function subdivision_figure(
     points::Vector{Vector{Float64}},
     colors::Vector{Int},
     surface::InterfaceSurface;
@@ -753,8 +700,8 @@ function pointcloud_subdivision_figure(
 )
     fig = Figure()
 
-    # Left: LScene with viridis distance-colored interface + points
-    Label(fig[1, 1, Top()], "Pointcloud and Interface"; fontsize=16)
+    # Left: LScene with viridis distance-colored interface
+    Label(fig[1, 1, Top()], "Point Cloud and Interface"; fontsize=16)
     scene_left = LScene(fig[1, 1]; show_axis=false)
 
     vertices = surface.vertices
@@ -765,7 +712,6 @@ function pointcloud_subdivision_figure(
         faces_gb = [TriangleFace(t...) for t in triangles]
         mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
 
-        # Get filtration values for vertices (0-simplices) to color by distance
         vertex_vals = Dict{Int, Float64}()
         for (simplex, val) in surface.filtration
             if length(simplex) == 1
@@ -783,13 +729,16 @@ function pointcloud_subdivision_figure(
         wireframe!(scene_left, mesh_obj; color=:white, linewidth=1)
     end
 
+    # Draw multicolored edges of the complex
+    draw_multicolored_edges!(scene_left, points, colors, surface)
+
     # Draw original points colored by label
     pts_mat = reduce(hcat, points)'
     point_colors = [CONF_COLORMAP[mod1(c, 4)] for c in colors]
     scatter!(scene_left, pts_mat[:, 1], pts_mat[:, 2], pts_mat[:, 3];
-             color=point_colors, markersize=10)
+             color=point_colors, markersize=15)
 
-    # Right: Axis3 with monocolor mesh, wireframe, and vertices (WITH lighting)
+    # Right: Axis3 with monocolor mesh, wireframe, and barycenters
     ax2 = Axis3(fig[1, 2]; aspect=:data, title="Interface and Barycenters")
 
     if !isempty(triangles) && !isempty(vertices)
@@ -797,16 +746,12 @@ function pointcloud_subdivision_figure(
         faces_gb = [TriangleFace(t...) for t in triangles]
         mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
 
-        # Mesh with transparency and lighting enabled
-        mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7))
-
-        # Wireframe
+        mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7), shading=NoShading)
         wireframe!(ax2, mesh_obj; color=:black, linewidth=1)
 
-        # Red barycenter dots
         bary_pts = reduce(hcat, vertices)'
         scatter!(ax2, bary_pts[:, 1], bary_pts[:, 2], bary_pts[:, 3];
-                 color=:red, markersize=8)
+                 color=:red, markersize=10)
     end
 
     if !isempty(title)
@@ -885,8 +830,9 @@ export generate_colored_mesh
 export draw_interface!, interface_figure
 export draw_point_cloud!, point_cloud_figure
 export draw_free_simplices!, compute_free_simplex_data
+export draw_multicolored_edges!
 export interface_and_point_cloud_figure
 export filtration_figure
 export sequence_figure
-export tetrahedron_subdivision_figure, pointcloud_subdivision_figure, interface_only_figure
+export subdivision_figure, interface_only_figure
 export CONF_GRADIENT, CONF_COLORMAP
