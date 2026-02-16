@@ -23,6 +23,7 @@ export get_vertex, get_all_vertices, get_simplex_vertices, get_simplex_value
 export num_generating_tetrahedra, get_all_generating_tetrahedra
 export num_generating_free_triangles, get_all_generating_free_triangles
 export num_generating_free_edges, get_all_generating_free_edges
+export get_vertex_atom_indices_flat, is_lower_star
 
 """
     InterfaceSurface
@@ -32,8 +33,10 @@ Julia wrapper for interface surface results with convenient accessors.
 # Fields (accessible via methods)
 - `vertices::Vector{Vector{Float64}}` - Barycenter coordinates
 - `filtration::Vector{Tuple{Vector{Int32}, Float64}}` - Simplices with filtration values
+- `vertex_atom_indices::Vector{Vector{Int}}` - For each vertex, the sorted input atom indices it is the barycenter of
 - `weighted::Bool` - Whether weighted complex was used
 - `alpha::Bool` - Whether alpha complex was used
+- `lower_star::Bool` - Whether lower star filtration was used
 """
 struct InterfaceSurface
     _cxx::InterfaceSurfaceCxx
@@ -42,8 +45,10 @@ struct InterfaceSurface
     generating_tetrahedra::Matrix{Int}
     generating_free_triangles::Vector{Vector{Int}}
     generating_free_edges::Vector{Vector{Int}}
+    vertex_atom_indices::Vector{Vector{Int}}
     weighted::Bool
     alpha::Bool
+    lower_star::Bool
 end
 
 function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
@@ -88,8 +93,19 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
         generating_free_edges = Vector{Vector{Int}}()
     end
 
+    # Extract vertex-to-atom mapping (convert 0-based to 1-based)
+    flat_vai = collect(get_vertex_atom_indices_flat(cxx_surface))
+    vertex_atom_indices = Vector{Vector{Int}}()
+    idx = 1
+    while idx <= length(flat_vai)
+        n_atoms = flat_vai[idx]
+        idx += 1
+        push!(vertex_atom_indices, flat_vai[idx:idx+n_atoms-1] .+ 1)
+        idx += n_atoms
+    end
+
     InterfaceSurface(cxx_surface, vertices, filtration, generating_tetrahedra, generating_free_triangles, generating_free_edges,
-                     is_weighted(cxx_surface), is_alpha(cxx_surface))
+                     vertex_atom_indices, is_weighted(cxx_surface), is_alpha(cxx_surface), is_lower_star(cxx_surface))
 end
 
 """

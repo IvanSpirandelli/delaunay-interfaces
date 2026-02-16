@@ -107,6 +107,15 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
                 for (int v : edge) result.push_back(v);
             }
             return result;
+        })
+        .method("get_vertex_atom_indices_flat", [](const InterfaceSurface& s) {
+            // Return as flat array: [n_atoms_0, atom_0_0, ..., n_atoms_1, atom_1_0, ...]
+            std::vector<int> result;
+            for (const auto& atoms : s.vertex_atom_indices) {
+                result.push_back(static_cast<int>(atoms.size()));
+                for (int a : atoms) result.push_back(a);
+            }
+            return result;
         });
 
     // InterfaceGenerator

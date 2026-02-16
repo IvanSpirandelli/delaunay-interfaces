@@ -34,6 +34,7 @@ struct InterfaceSurfacePy {
     Tetrahedra generating_tetrahedra;
     std::vector<std::vector<int>> generating_free_triangles;
     std::vector<std::vector<int>> generating_free_edges;
+    VertexAtomIndices vertex_atom_indices;
     bool weighted;
     bool alpha;
     bool lower_star;
@@ -44,6 +45,7 @@ struct InterfaceSurfacePy {
         , generating_tetrahedra(surface.simplices.generating_tetrahedra)
         , generating_free_triangles(surface.simplices.generating_free_triangles)
         , generating_free_edges(surface.simplices.generating_free_edges)
+        , vertex_atom_indices(surface.vertex_atom_indices)
         , weighted(surface.weighted)
         , alpha(surface.alpha)
         , lower_star(surface.lower_star) {}
@@ -90,7 +92,7 @@ std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtratio
     bool lower_star = false
 ) {
     Points points = numpy_to_points(points_arr);
-    auto [vertices, filtration, simplices] = get_barycentric_subdivision_and_filtration(points, color_labels, radii, weighted, alpha, lower_star);
+    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(points, color_labels, radii, weighted, alpha, lower_star);
     return {points_to_numpy(vertices), filtration};
 }
 
@@ -109,6 +111,8 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "Generating free multicolored triangles not covered by tetrahedra")
         .def_readonly("generating_free_edges", &InterfaceSurfacePy::generating_free_edges,
             "Generating free multicolored edges not covered by tetrahedra or triangles")
+        .def_readonly("vertex_atom_indices", &InterfaceSurfacePy::vertex_atom_indices,
+            "For each barycenter vertex, the sorted list of input atom indices it is the barycenter of")
         .def_readonly("weighted", &InterfaceSurfacePy::weighted,
             "Whether weighted Delaunay/alpha complex was used")
         .def_readonly("alpha", &InterfaceSurfacePy::alpha,

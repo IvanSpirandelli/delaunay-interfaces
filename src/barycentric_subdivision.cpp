@@ -262,6 +262,14 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     }
 }
 
+std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() const {
+    std::vector<std::vector<int>> result(next_simplex_id_);
+    for (const auto& [key, id_val] : simplex_map_) {
+        result[id_val.first] = key;
+    }
+    return result;
+}
+
 void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
     std::vector<int> vertices(tet.begin(), tet.end());
     process_simplex(vertices);
@@ -283,7 +291,7 @@ Filtration BarycentricSubdivision::get_filtration() const {
     return result;
 }
 
-std::tuple<Points, Filtration, MulticoloredSimplices> get_barycentric_subdivision_and_filtration(
+std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -327,7 +335,8 @@ std::tuple<Points, Filtration, MulticoloredSimplices> get_barycentric_subdivisio
         }
     }
 
-    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices)};
+    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
+            subdivision.get_vertex_atom_indices()};
 }
 
 } // namespace delaunay_interfaces

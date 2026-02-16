@@ -35,11 +35,15 @@ struct MulticoloredSimplices {
     std::vector<std::vector<int>> generating_free_edges;
 };
 
+// Vertex-to-atom mapping: vertex_atom_indices[i] = sorted input atom indices for vertex i
+using VertexAtomIndices = std::vector<std::vector<int>>;
+
 // Result structure
 struct InterfaceSurface {
     Points vertices;
     Filtration filtration;
     MulticoloredSimplices simplices;
+    VertexAtomIndices vertex_atom_indices;
     bool weighted;
     bool alpha;
     bool lower_star;

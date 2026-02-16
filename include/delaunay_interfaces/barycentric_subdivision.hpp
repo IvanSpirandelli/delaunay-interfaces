@@ -21,6 +21,10 @@ public:
     const Points& get_barycenters() const { return barycenters_; }
     Filtration get_filtration() const;
 
+    // Get atom indices for each barycenter vertex, ordered by vertex ID.
+    // vertex_atom_indices[i] = sorted list of input atom indices that vertex i is the barycenter of.
+    std::vector<std::vector<int>> get_vertex_atom_indices() const;
+
 private:
     // Barycenter computation
     Point3D get_barycenter(const std::vector<int>& vertices) const;

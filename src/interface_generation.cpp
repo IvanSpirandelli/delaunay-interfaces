@@ -310,11 +310,11 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     bool alpha,
     bool lower_star
 ) {
-    auto [vertices, filtration, simplices] = get_barycentric_subdivision_and_filtration(
+    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(
         points, color_labels, radii, weighted, alpha, lower_star
     );
 
-    return InterfaceSurface{vertices, filtration, std::move(simplices), weighted, alpha, lower_star};
+    return InterfaceSurface{vertices, filtration, std::move(simplices), std::move(vertex_atom_indices), weighted, alpha, lower_star};
 }
 
 } // namespace delaunay_interfaces
