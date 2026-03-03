@@ -672,7 +672,7 @@ end
 # =============================================================================
 
 """
-    subdivision_figure(points, colors, surface; title="")
+    subdivision_figure(points, colors, surface; title="", show_free_simplices=false)
 
 Create a dual-panel figure for any colored point cloud:
 - Left (LScene): Viridis-colored interface with wireframe, input points, and multicolored edges
@@ -688,6 +688,7 @@ only for bicolored edges present in the alpha/Delaunay complex (not all pairs).
 
 # Keyword Arguments
 - `title::String`: Figure title (default: "")
+- `show_free_simplices::Bool`: Show free edges and isolated vertices of the subdivision (default: `false`)
 
 # Returns
 - `Figure`: The GLMakie figure
@@ -696,7 +697,8 @@ function subdivision_figure(
     points::Vector{Vector{Float64}},
     colors::Vector{Int},
     surface::InterfaceSurface;
-    title::String=""
+    title::String="",
+    show_free_simplices::Bool=false
 )
     fig = Figure()
 
@@ -731,6 +733,10 @@ function subdivision_figure(
 
     # Draw multicolored edges of the complex
     draw_multicolored_edges!(scene_left, points, colors, surface)
+
+    if show_free_simplices
+        draw_free_simplices!(scene_left, surface)
+    end
 
     # Draw original points colored by label
     pts_mat = reduce(hcat, points)'
