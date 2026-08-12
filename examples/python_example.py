@@ -45,7 +45,7 @@ def main():
 
     print("Input:")
     print(f"  Points: {len(points)}")
-    print(f"  Colors: 2 groups")
+    print(f"  Color groups: {len(set(colors))}")
     print()
 
     gen = di.InterfaceGenerator()
@@ -54,7 +54,7 @@ def main():
     print("Example 1: Unweighted Delaunay Interface")
     print("-" * 50)
 
-    surface = gen.compute_interface_surface(points, colors, [], False, False)
+    surface = gen.compute_interface_surface(points, colors)
 
     print(f"  Barycenters: {len(surface.vertices)}")
     print(f"  Filtration simplices: {len(surface.filtration)}")
@@ -86,20 +86,20 @@ def main():
     print("Example 3: Compare different complex types")
     print("-" * 50)
 
-    # Unweighted Delaunay
-    surface_del = gen.compute_interface_surface(points, colors, [], False, False)
+    # Unweighted Delaunay (no radii)
+    surface_del = gen.compute_interface_surface(points, colors)
     n_del = len(surface_del.vertices)
     t_del = sum(1 for s, v in surface_del.filtration if len(s) == 3)
     print(f"  Unweighted Delaunay:  {n_del} barycenters, {t_del} triangles")
 
     # Weighted Delaunay
-    surface_wei = gen.compute_interface_surface(points, colors, radii, True, False)
+    surface_wei = gen.compute_interface_surface(points, colors, radii, alpha=False)
     n_wei = len(surface_wei.vertices)
     t_wei = sum(1 for s, v in surface_wei.filtration if len(s) == 3)
     print(f"  Weighted Delaunay:    {n_wei} barycenters, {t_wei} triangles")
 
-    # Weighted Alpha
-    surface_alp = gen.compute_interface_surface(points, colors, radii, True, True)
+    # Weighted Alpha (default when radii are given)
+    surface_alp = gen.compute_interface_surface(points, colors, radii)
     n_alp = len(surface_alp.vertices)
     t_alp = sum(1 for s, v in surface_alp.filtration if len(s) == 3)
     print(f"  Weighted Alpha:       {n_alp} barycenters, {t_alp} triangles")
