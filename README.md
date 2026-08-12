@@ -128,10 +128,11 @@ colors = [1, 1, 2, 2]
 
 gen = di.InterfaceGenerator()
 
-# Unweighted Delaunay (default is weighted=True, alpha=True)
-surface = gen.compute_interface_surface(points, colors, radii=[], weighted=False, alpha=False)
+# Unweighted Delaunay (no radii)
+surface = gen.compute_interface_surface(points, colors)
 
 # Or with radii for weighted alpha complex
+# (weighted and alpha default to True whenever radii are given)
 radii = [0.5, 0.5, 0.5, 0.5]
 surface = gen.compute_interface_surface(points, colors, radii)
 
@@ -172,7 +173,12 @@ surface = InterfaceSurface(points, colors, radii; weighted=true, alpha=false)
 #include <delaunay_interfaces/interface_generation.hpp>
 
 delaunay_interfaces::InterfaceGenerator gen;
-auto surface = gen.compute_interface_surface(points, colors, radii, weighted, alpha);
+
+// Unweighted Delaunay
+auto surface = gen.compute_interface_surface(points, colors);
+
+// Weighted alpha complex
+auto weighted_surface = gen.compute_interface_surface(points, colors, radii);
 ```
 
 ## Dependencies

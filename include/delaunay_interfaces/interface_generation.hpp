@@ -1,70 +1,72 @@
 #pragma once
 
 #include "types.hpp"
-#include <memory>
 
 namespace delaunay_interfaces {
 
 class InterfaceGenerator {
 public:
-    InterfaceGenerator() = default;
-    ~InterfaceGenerator() = default;
-
-    // Main entry point
-    InterfaceSurface compute_interface_surface(
+    [[nodiscard]] InterfaceSurface compute_interface_surface(
         const Points& points,
         const ColorLabels& color_labels,
-        const Radii& radii = {},
+        const Radii& radii,
         bool weighted = true,
         bool alpha = true,
         bool lower_star = false
-    );
+    ) const;
 
-    // Get multicolored tetrahedra
-    Tetrahedra get_multicolored_tetrahedra(
+    // Radii-free overload: plain (unweighted) Delaunay complex.
+    [[nodiscard]] InterfaceSurface compute_interface_surface(
+        const Points& points,
+        const ColorLabels& color_labels
+    ) const;
+
+    [[nodiscard]] Tetrahedra get_multicolored_tetrahedra(
         const Points& points,
         const ColorLabels& color_labels,
-        const Radii& radii = {},
+        const Radii& radii,
         bool weighted = true,
         bool alpha = true
-    );
+    ) const;
 
-    // Get all multicolored simplices from weighted alpha complex
-    // (tetrahedra + free triangles + free edges not covered by tetrahedra)
-    MulticoloredSimplices get_multicolored_simplices_weighted_alpha(
+    [[nodiscard]] Tetrahedra get_multicolored_tetrahedra(
+        const Points& points,
+        const ColorLabels& color_labels
+    ) const;
+
+    // All multicolored simplices of the weighted alpha complex:
+    // tetrahedra + free triangles + free edges not covered by tetrahedra.
+    [[nodiscard]] MulticoloredSimplices get_multicolored_simplices_weighted_alpha(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii
-    );
+    ) const;
 
 private:
-    // Delaunay/Alpha complex computation
     Tetrahedra get_multicolored_tetrahedra_delaunay(
         const Points& points,
         const ColorLabels& color_labels
-    );
+    ) const;
 
     Tetrahedra get_multicolored_tetrahedra_weighted_delaunay(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii
-    );
+    ) const;
 
     Tetrahedra get_multicolored_tetrahedra_weighted_alpha(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii
-    );
+    ) const;
 
-    // Helper to check if tetrahedron is multicolored
     bool is_multicolored(const Tetrahedron& tet, const ColorLabels& color_labels) const;
 };
 
-// Barycentric subdivision functions
-std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_barycentric_subdivision_and_filtration(
+[[nodiscard]] std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
-    const Radii& radii = {},
+    const Radii& radii,
     bool weighted = true,
     bool alpha = true,
     bool lower_star = false
@@ -72,10 +74,10 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_bar
 
 // Simplified 2-color surface: each vertex = midpoint of one cross-color atom pair.
 // Requires exactly 2 distinct colors in the input.
-SimplifiedSurface get_simplified_surface(
+[[nodiscard]] SimplifiedSurface get_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
-    const Radii& radii = {},
+    const Radii& radii,
     bool weighted = true,
     bool alpha = true
 );

@@ -199,11 +199,10 @@ function get_multicolored_tetrahedra_wrapper(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
-    weighted::Bool=true,
-    alpha::Bool=true
+    weighted::Bool=!isempty(radii),
+    alpha::Bool=!isempty(radii)
 )
     gen = InterfaceGenerator()
-    # Convert to CxxWrap-compatible types
     n_points = length(points)
     flat_points = reduce(vcat, points)
     color_labels_i32 = Int32.(color_labels)

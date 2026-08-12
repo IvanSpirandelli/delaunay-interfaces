@@ -1,6 +1,5 @@
 #include "delaunay_interfaces/interface_generation.hpp"
 #include "delaunay_interfaces/simplified_subdivision.hpp"
-#include "delaunay_interfaces/chromatic_partitioning.hpp"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Regular_triangulation_3.h>
@@ -12,32 +11,32 @@
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <set>
 #include <algorithm>
+#include <stdexcept>
 
 namespace delaunay_interfaces {
 
-// CGAL type definitions - Delaunay triangulation
+// CGAL aliases. All triangulations carry the input point index as vertex info.
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
-using DelaunayVertexBase = CGAL::Triangulation_vertex_base_3<Kernel>;
-using DelaunayCellBase = CGAL::Triangulation_cell_base_3<Kernel>;
-using DelaunayDataStructure = CGAL::Triangulation_data_structure_3<DelaunayVertexBase, DelaunayCellBase>;
-using DelaunayTriangulation = CGAL::Delaunay_triangulation_3<Kernel, DelaunayDataStructure>;
 
-// Weighted Delaunay (Regular triangulation)
+using DtVb = CGAL::Triangulation_vertex_base_with_info_3<int, Kernel>;
+using DtTds = CGAL::Triangulation_data_structure_3<DtVb, CGAL::Delaunay_triangulation_cell_base_3<Kernel>>;
+using DelaunayTriangulation = CGAL::Delaunay_triangulation_3<Kernel, DtTds>;
+
 using WeightedPoint = Kernel::Weighted_point_3;
-using RegularTriangulation = CGAL::Regular_triangulation_3<Kernel>;
+using RtVb = CGAL::Triangulation_vertex_base_with_info_3<int, Kernel, CGAL::Regular_triangulation_vertex_base_3<Kernel>>;
+using RtTds = CGAL::Triangulation_data_structure_3<RtVb, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
+using RegularTriangulation = CGAL::Regular_triangulation_3<Kernel, RtTds>;
 
-// Weighted alpha shapes (Regular_triangulation_3 based, with vertex info for index tracking)
-using RtVb = CGAL::Regular_triangulation_vertex_base_3<Kernel>;
-using RtVbInfo = CGAL::Triangulation_vertex_base_with_info_3<int, Kernel, RtVb>;
-using AsVb = CGAL::Alpha_shape_vertex_base_3<Kernel, RtVbInfo>;
-using RtCb = CGAL::Regular_triangulation_cell_base_3<Kernel>;
-using AsCb = CGAL::Alpha_shape_cell_base_3<Kernel, RtCb>;
+using AsVb = CGAL::Alpha_shape_vertex_base_3<Kernel, RtVb>;
+using AsCb = CGAL::Alpha_shape_cell_base_3<Kernel, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
 using AsTds = CGAL::Triangulation_data_structure_3<AsVb, AsCb>;
 using AsRt = CGAL::Regular_triangulation_3<Kernel, AsTds>;
 using WeightedAlphaShape = CGAL::Alpha_shape_3<AsRt>;
 using IndexedWeightedPoint = std::pair<WeightedPoint, int>;
 
-// Helper: check if a set of vertex indices is multicolored
+using EdgeKey = std::array<int, 2>;
+using TriangleKey = std::array<int, 3>;
+
 static bool is_multicolored_set(const std::vector<int>& indices, const ColorLabels& color_labels) {
     if (indices.size() < 2) return false;
     int first_color = color_labels[indices[0]];
@@ -47,14 +46,17 @@ static bool is_multicolored_set(const std::vector<int>& indices, const ColorLabe
     return false;
 }
 
-// Helper: make a sorted vertex index vector from a set of indices
-static std::vector<int> make_sorted_key(std::initializer_list<int> indices) {
-    std::vector<int> key(indices);
-    std::sort(key.begin(), key.end());
-    return key;
+static bool is_multicolored_tet(const Tetrahedron& tet, const ColorLabels& color_labels) {
+    int first_color = color_labels[tet[0]];
+    return color_labels[tet[1]] != first_color
+        || color_labels[tet[2]] != first_color
+        || color_labels[tet[3]] != first_color;
 }
 
-// Build indexed weighted points for alpha shape construction
+static EdgeKey make_edge_key(int a, int b) {
+    return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
+}
+
 static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
     const Points& points,
     const Radii& radii
@@ -72,104 +74,12 @@ static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
     return wpoints;
 }
 
-bool InterfaceGenerator::is_multicolored(
-    const Tetrahedron& tet,
-    const ColorLabels& color_labels
-) const {
-    std::set<int> colors;
-    for (int v : tet) {
-        colors.insert(color_labels[v]);
-    }
-    return colors.size() >= 2;
-}
-
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_delaunay(
-    const Points& points,
+// Tetrahedra of the alpha shape (non-EXTERIOR cells) whose vertices span >= 2 colors.
+static Tetrahedra collect_multicolored_alpha_tetrahedra(
+    const WeightedAlphaShape& as,
     const ColorLabels& color_labels
 ) {
-    DelaunayTriangulation dt;
-    std::map<DelaunayTriangulation::Vertex_handle, int> vertex_to_index;
-
-    // Insert points and track indices
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& p = points[i];
-        auto vh = dt.insert(Kernel::Point_3(p.x(), p.y(), p.z()));
-        vertex_to_index[vh] = i;
-    }
-
     Tetrahedra result;
-
-    // Extract tetrahedra
-    for (auto cit = dt.finite_cells_begin(); cit != dt.finite_cells_end(); ++cit) {
-        Tetrahedron tet;
-        for (int i = 0; i < 4; ++i) {
-            tet[i] = vertex_to_index[cit->vertex(i)];
-        }
-
-        if (is_multicolored(tet, color_labels)) {
-            result.push_back(tet);
-        }
-    }
-
-    return result;
-}
-
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_delaunay(
-    const Points& points,
-    const ColorLabels& color_labels,
-    const Radii& radii
-) {
-    RegularTriangulation rt;
-    std::map<RegularTriangulation::Vertex_handle, int> vertex_to_index;
-
-    // Insert weighted points
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& p = points[i];
-        double weight = radii[i] * radii[i]; // Weight is radius squared
-        Kernel::Point_3 cgal_point(p.x(), p.y(), p.z());
-        WeightedPoint wp(cgal_point, weight);
-
-        auto vh = rt.insert(wp);
-        if (vh != RegularTriangulation::Vertex_handle()) {
-            vertex_to_index[vh] = i;
-        }
-    }
-
-    Tetrahedra result;
-
-    // Extract tetrahedra
-    for (auto cit = rt.finite_cells_begin(); cit != rt.finite_cells_end(); ++cit) {
-        if (rt.is_infinite(cit)) continue;
-
-        Tetrahedron tet;
-        bool valid = true;
-        for (int i = 0; i < 4; ++i) {
-            auto vh = cit->vertex(i);
-            if (vertex_to_index.find(vh) == vertex_to_index.end()) {
-                valid = false;
-                break;
-            }
-            tet[i] = vertex_to_index[vh];
-        }
-
-        if (valid && is_multicolored(tet, color_labels)) {
-            result.push_back(tet);
-        }
-    }
-
-    return result;
-}
-
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_alpha(
-    const Points& points,
-    const ColorLabels& color_labels,
-    const Radii& radii
-) {
-    auto wpoints = make_indexed_weighted_points(points, radii);
-    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
-
-    Tetrahedra result;
-
     for (auto cit = as.finite_cells_begin(); cit != as.finite_cells_end(); ++cit) {
         if (as.classify(cit) == WeightedAlphaShape::EXTERIOR) continue;
 
@@ -177,13 +87,81 @@ Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_alpha(
         for (int i = 0; i < 4; ++i) {
             tet[i] = cit->vertex(i)->info();
         }
+        if (is_multicolored_tet(tet, color_labels)) {
+            result.push_back(tet);
+        }
+    }
+    return result;
+}
 
+bool InterfaceGenerator::is_multicolored(
+    const Tetrahedron& tet,
+    const ColorLabels& color_labels
+) const {
+    return is_multicolored_tet(tet, color_labels);
+}
+
+Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_delaunay(
+    const Points& points,
+    const ColorLabels& color_labels
+) const {
+    DelaunayTriangulation dt;
+    for (size_t i = 0; i < points.size(); ++i) {
+        const auto& p = points[i];
+        auto vh = dt.insert(Kernel::Point_3(p.x(), p.y(), p.z()));
+        vh->info() = static_cast<int>(i);
+    }
+
+    Tetrahedra result;
+    for (auto cit = dt.finite_cells_begin(); cit != dt.finite_cells_end(); ++cit) {
+        Tetrahedron tet;
+        for (int i = 0; i < 4; ++i) {
+            tet[i] = cit->vertex(i)->info();
+        }
         if (is_multicolored(tet, color_labels)) {
             result.push_back(tet);
         }
     }
-
     return result;
+}
+
+Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_delaunay(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii
+) const {
+    RegularTriangulation rt;
+    for (size_t i = 0; i < points.size(); ++i) {
+        const auto& p = points[i];
+        WeightedPoint wp(Kernel::Point_3(p.x(), p.y(), p.z()), radii[i] * radii[i]);
+        auto vh = rt.insert(wp);
+        // Points hidden by the regular triangulation yield a null handle.
+        if (vh != RegularTriangulation::Vertex_handle()) {
+            vh->info() = static_cast<int>(i);
+        }
+    }
+
+    Tetrahedra result;
+    for (auto cit = rt.finite_cells_begin(); cit != rt.finite_cells_end(); ++cit) {
+        Tetrahedron tet;
+        for (int i = 0; i < 4; ++i) {
+            tet[i] = cit->vertex(i)->info();
+        }
+        if (is_multicolored(tet, color_labels)) {
+            result.push_back(tet);
+        }
+    }
+    return result;
+}
+
+Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_alpha(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii
+) const {
+    auto wpoints = make_indexed_weighted_points(points, radii);
+    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
+    return collect_multicolored_alpha_tetrahedra(as, color_labels);
 }
 
 Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
@@ -192,97 +170,84 @@ Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
     const Radii& radii,
     bool weighted,
     bool alpha
-) {
-    if (weighted) {
-        if (alpha) {
-            return get_multicolored_tetrahedra_weighted_alpha(points, color_labels, radii);
-        } else {
-            return get_multicolored_tetrahedra_weighted_delaunay(points, color_labels, radii);
-        }
-    } else {
-        return get_multicolored_tetrahedra_delaunay(points, color_labels);
+) const {
+    if (!weighted && alpha) {
+        throw std::invalid_argument("alpha complexes require weighted=true (unweighted alpha is not implemented)");
     }
+    if (weighted) {
+        return alpha
+            ? get_multicolored_tetrahedra_weighted_alpha(points, color_labels, radii)
+            : get_multicolored_tetrahedra_weighted_delaunay(points, color_labels, radii);
+    }
+    return get_multicolored_tetrahedra_delaunay(points, color_labels);
+}
+
+Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
+    const Points& points,
+    const ColorLabels& color_labels
+) const {
+    return get_multicolored_tetrahedra(points, color_labels, {}, false, false);
 }
 
 MulticoloredSimplices InterfaceGenerator::get_multicolored_simplices_weighted_alpha(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii
-) {
+) const {
     auto wpoints = make_indexed_weighted_points(points, radii);
     WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
 
     MulticoloredSimplices result;
+    result.generating_tetrahedra = collect_multicolored_alpha_tetrahedra(as, color_labels);
 
-    // --- Pass 1: Extract multicolored alpha tetrahedra ---
-    for (auto cit = as.finite_cells_begin(); cit != as.finite_cells_end(); ++cit) {
-        if (as.classify(cit) == WeightedAlphaShape::EXTERIOR) continue;
-
-        Tetrahedron tet;
-        for (int i = 0; i < 4; ++i) {
-            tet[i] = cit->vertex(i)->info();
-        }
-
-        if (is_multicolored(tet, color_labels)) {
-            result.generating_tetrahedra.push_back(tet);
-        }
-    }
-
-    // Build set of triangle faces covered by multicolored alpha tetrahedra
-    std::set<std::vector<int>> covered_tris;
-    // Build set of edges covered by multicolored alpha tetrahedra or free triangles
-    std::set<std::vector<int>> covered_edges;
-
+    // Faces already accounted for by a generating tetrahedron must not be
+    // re-emitted as free simplices below.
+    std::set<TriangleKey> covered_tris;
+    std::set<EdgeKey> covered_edges;
     for (const auto& tet : result.generating_tetrahedra) {
-        // 4 triangle faces
         for (int skip = 0; skip < 4; ++skip) {
-            std::vector<int> tri;
+            TriangleKey tri;
+            int k = 0;
             for (int i = 0; i < 4; ++i) {
-                if (i != skip) tri.push_back(tet[i]);
+                if (i != skip) tri[k++] = tet[i];
             }
             std::sort(tri.begin(), tri.end());
             covered_tris.insert(tri);
         }
-        // 6 edges
         for (int i = 0; i < 4; ++i) {
             for (int j = i + 1; j < 4; ++j) {
-                covered_edges.insert(make_sorted_key({tet[i], tet[j]}));
+                covered_edges.insert(make_edge_key(tet[i], tet[j]));
             }
         }
     }
 
-    // --- Pass 2: Extract free multicolored facets ---
+    // Free multicolored triangles: alpha facets not covered by any tetrahedron.
     for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
         if (as.classify(*fit) == WeightedAlphaShape::EXTERIOR) continue;
 
         auto cell = fit->first;
         int face_idx = fit->second;
-
-        // Get the 3 vertex indices of this facet
         std::vector<int> tri_indices;
         for (int i = 0; i < 4; ++i) {
             if (i == face_idx) continue;
             tri_indices.push_back(cell->vertex(i)->info());
         }
 
-        // Check if multicolored
         if (!is_multicolored_set(tri_indices, color_labels)) continue;
 
-        // Check if already covered by a multicolored alpha tetrahedron
-        std::vector<int> sorted_tri = tri_indices;
+        TriangleKey sorted_tri{tri_indices[0], tri_indices[1], tri_indices[2]};
         std::sort(sorted_tri.begin(), sorted_tri.end());
         if (covered_tris.count(sorted_tri)) continue;
 
         result.generating_free_triangles.push_back(tri_indices);
-        // Add edges of this free triangle to covered_edges
         for (int i = 0; i < 3; ++i) {
             for (int j = i + 1; j < 3; ++j) {
-                covered_edges.insert(make_sorted_key({tri_indices[i], tri_indices[j]}));
+                covered_edges.insert(make_edge_key(tri_indices[i], tri_indices[j]));
             }
         }
     }
 
-    // --- Pass 3: Extract free multicolored edges ---
+    // Free multicolored edges: alpha edges not covered by any tetrahedron or free triangle.
     for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
         if (as.classify(*eit) == WeightedAlphaShape::EXTERIOR) continue;
 
@@ -290,12 +255,8 @@ MulticoloredSimplices InterfaceGenerator::get_multicolored_simplices_weighted_al
         int idx0 = cell->vertex(eit->second)->info();
         int idx1 = cell->vertex(eit->third)->info();
 
-        // Check multicolored
         if (color_labels[idx0] == color_labels[idx1]) continue;
-
-        // Check if already covered
-        auto sorted_edge = make_sorted_key({idx0, idx1});
-        if (covered_edges.count(sorted_edge)) continue;
+        if (covered_edges.count(make_edge_key(idx0, idx1))) continue;
 
         result.generating_free_edges.push_back({idx0, idx1});
     }
@@ -310,12 +271,20 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     bool weighted,
     bool alpha,
     bool lower_star
-) {
+) const {
     auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(
         points, color_labels, radii, weighted, alpha, lower_star
     );
 
-    return InterfaceSurface{vertices, filtration, std::move(simplices), std::move(vertex_atom_indices), weighted, alpha, lower_star};
+    return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
+                            std::move(vertex_atom_indices), weighted, alpha, lower_star};
+}
+
+InterfaceSurface InterfaceGenerator::compute_interface_surface(
+    const Points& points,
+    const ColorLabels& color_labels
+) const {
+    return compute_interface_surface(points, color_labels, {}, false, false, false);
 }
 
 SimplifiedSurface get_simplified_surface(
@@ -353,11 +322,10 @@ SimplifiedSurface get_simplified_surface(
         auto tetrahedra = generator.get_multicolored_tetrahedra(
             points, color_labels, radii, weighted, alpha);
 
-        mc_simplices.generating_tetrahedra = tetrahedra;
-
         for (const auto& tet : tetrahedra) {
             subdivision.process_tetrahedron(tet);
         }
+        mc_simplices.generating_tetrahedra = std::move(tetrahedra);
     }
 
     return SimplifiedSurface{

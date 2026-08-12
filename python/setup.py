@@ -1,6 +1,6 @@
 import os
+import subprocess
 import sys
-from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -36,7 +36,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='delaunay-interfaces',
-    version='1.0.0',
+    version='0.1.0',
     author='Ivan Spirandelli',
     author_email='spirandelli@uni-potsdam.de',
     description='C++ library for computing interface surfaces from multicolored point clouds',

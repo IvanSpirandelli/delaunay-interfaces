@@ -1,12 +1,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
+#include <optional>
 #include "delaunay_interfaces/interface_generation.hpp"
 
 namespace py = pybind11;
 using namespace delaunay_interfaces;
 
-// Helper function to convert Nx3 numpy array to Points
 Points numpy_to_points(const Eigen::Ref<const Eigen::MatrixXd>& arr) {
     Points points;
     points.reserve(arr.rows());
@@ -16,7 +16,6 @@ Points numpy_to_points(const Eigen::Ref<const Eigen::MatrixXd>& arr) {
     return points;
 }
 
-// Helper function to convert Points to Nx3 numpy array
 Eigen::MatrixXd points_to_numpy(const Points& points) {
     Eigen::MatrixXd arr(points.size(), 3);
     for (size_t i = 0; i < points.size(); ++i) {
@@ -27,7 +26,6 @@ Eigen::MatrixXd points_to_numpy(const Points& points) {
     return arr;
 }
 
-// Wrapper for InterfaceSurface with numpy-friendly vertices
 struct InterfaceSurfacePy {
     Eigen::MatrixXd vertices;
     Filtration filtration;
@@ -51,7 +49,6 @@ struct InterfaceSurfacePy {
         , lower_star(surface.lower_star) {}
 };
 
-// Wrapper class with numpy-friendly interface
 class InterfaceGeneratorPy {
     InterfaceGenerator gen_;
 public:
@@ -60,29 +57,32 @@ public:
     InterfaceSurfacePy compute_interface_surface(
         const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
         const ColorLabels& color_labels,
-        const Radii& radii = {},
-        bool weighted = true,
-        bool alpha = true,
-        bool lower_star = false
+        const Radii& radii,
+        std::optional<bool> weighted,
+        std::optional<bool> alpha,
+        bool lower_star
     ) {
         Points points = numpy_to_points(points_arr);
-        auto surface = gen_.compute_interface_surface(points, color_labels, radii, weighted, alpha, lower_star);
+        auto surface = gen_.compute_interface_surface(
+            points, color_labels, radii,
+            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()), lower_star);
         return InterfaceSurfacePy(surface);
     }
 
     Tetrahedra get_multicolored_tetrahedra(
         const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
         const ColorLabels& color_labels,
-        const Radii& radii = {},
-        bool weighted = true,
-        bool alpha = true
+        const Radii& radii,
+        std::optional<bool> weighted,
+        std::optional<bool> alpha
     ) {
         Points points = numpy_to_points(points_arr);
-        return gen_.get_multicolored_tetrahedra(points, color_labels, radii, weighted, alpha);
+        return gen_.get_multicolored_tetrahedra(
+            points, color_labels, radii,
+            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()));
     }
 };
 
-// Wrapper for SimplifiedSurface with numpy-friendly vertices
 struct SimplifiedSurfacePy {
     Eigen::MatrixXd vertices;
     std::vector<std::array<int32_t, 3>> triangles;
@@ -110,37 +110,38 @@ struct SimplifiedSurfacePy {
         , alpha(surface.alpha) {}
 };
 
-// Wrapper for get_simplified_surface
 SimplifiedSurfacePy get_simplified_surface_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
-    const Radii& radii = {},
-    bool weighted = true,
-    bool alpha = true
+    const Radii& radii,
+    std::optional<bool> weighted,
+    std::optional<bool> alpha
 ) {
     Points points = numpy_to_points(points_arr);
-    auto surface = get_simplified_surface(points, color_labels, radii, weighted, alpha);
+    auto surface = get_simplified_surface(
+        points, color_labels, radii,
+        weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()));
     return SimplifiedSurfacePy(surface);
 }
 
-// Wrapper for convenience function
 std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtration_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
-    const Radii& radii = {},
-    bool weighted = true,
-    bool alpha = true,
-    bool lower_star = false
+    const Radii& radii,
+    std::optional<bool> weighted,
+    std::optional<bool> alpha,
+    bool lower_star
 ) {
     Points points = numpy_to_points(points_arr);
-    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(points, color_labels, radii, weighted, alpha, lower_star);
+    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(
+        points, color_labels, radii,
+        weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()), lower_star);
     return {points_to_numpy(vertices), filtration};
 }
 
 PYBIND11_MODULE(delaunay_interfaces, m) {
     m.doc() = "DelaunayInterfaces: Compute interface surfaces from multicolored point clouds";
 
-    // Bind InterfaceSurface (Python wrapper)
     py::class_<InterfaceSurfacePy>(m, "InterfaceSurface")
         .def_readonly("vertices", &InterfaceSurfacePy::vertices,
             "Barycenter vertices as Nx3 numpy array")
@@ -161,15 +162,14 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         .def_readonly("lower_star", &InterfaceSurfacePy::lower_star,
             "Whether lower star filtration was used (max instead of min)");
 
-    // Bind InterfaceGenerator (Python wrapper)
     py::class_<InterfaceGeneratorPy>(m, "InterfaceGenerator")
         .def(py::init<>())
         .def("compute_interface_surface", &InterfaceGeneratorPy::compute_interface_surface,
             py::arg("points"),
             py::arg("color_labels"),
             py::arg("radii") = Radii{},
-            py::arg("weighted") = true,
-            py::arg("alpha") = true,
+            py::arg("weighted") = py::none(),
+            py::arg("alpha") = py::none(),
             py::arg("lower_star") = false,
             "Compute the interface surface from colored points\n\n"
             "Parameters\n"
@@ -180,10 +180,10 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "    Color label for each point\n"
             "radii : list of float, optional\n"
             "    Radius for each point (required if weighted=True)\n"
-            "weighted : bool, default=True\n"
-            "    Use weighted Delaunay/alpha complex\n"
-            "alpha : bool, default=True\n"
-            "    Use alpha complex (vs Delaunay complex)\n"
+            "weighted : bool, optional\n"
+            "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+            "alpha : bool, optional\n"
+            "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n"
             "lower_star : bool, default=False\n"
             "    Use lower star filtration (max) instead of upper star (min)\n\n"
             "Returns\n"
@@ -194,8 +194,8 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             py::arg("points"),
             py::arg("color_labels"),
             py::arg("radii") = Radii{},
-            py::arg("weighted") = true,
-            py::arg("alpha") = true,
+            py::arg("weighted") = py::none(),
+            py::arg("alpha") = py::none(),
             "Get all multicolored tetrahedra from the complex\n\n"
             "Parameters\n"
             "----------\n"
@@ -205,23 +205,22 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "    Color label for each point\n"
             "radii : list of float, optional\n"
             "    Radius for each point (required if weighted=True)\n"
-            "weighted : bool, default=True\n"
-            "    Use weighted Delaunay/alpha complex\n"
-            "alpha : bool, default=True\n"
-            "    Use alpha complex (vs Delaunay complex)\n\n"
+            "weighted : bool, optional\n"
+            "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+            "alpha : bool, optional\n"
+            "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n\n"
             "Returns\n"
             "-------\n"
             "list of arrays\n"
             "    List of tetrahedra (each is array of 4 vertex indices)");
 
-    // Convenience function
     m.def("get_barycentric_subdivision_and_filtration",
         &get_barycentric_subdivision_and_filtration_py,
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},
-        py::arg("weighted") = true,
-        py::arg("alpha") = true,
+        py::arg("weighted") = py::none(),
+        py::arg("alpha") = py::none(),
         py::arg("lower_star") = false,
         "Compute barycentric subdivision and filtration\n\n"
         "Parameters\n"
@@ -232,10 +231,10 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "    Color label for each point\n"
         "radii : list of float, optional\n"
         "    Radius for each point (required if weighted=True)\n"
-        "weighted : bool, default=True\n"
-        "    Use weighted Delaunay/alpha complex\n"
-        "alpha : bool, default=True\n"
-        "    Use alpha complex (vs Delaunay complex)\n"
+        "weighted : bool, optional\n"
+        "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+        "alpha : bool, optional\n"
+        "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n"
         "lower_star : bool, default=False\n"
         "    Use lower star filtration (max) instead of upper star (min)\n\n"
         "Returns\n"
@@ -244,7 +243,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "    vertices: Nx3 numpy array of barycenter points\n"
         "    filtration: list of (simplex, filtration_value) tuples");
 
-    // Bind SimplifiedSurface (Python wrapper)
     py::class_<SimplifiedSurfacePy>(m, "SimplifiedSurface")
         .def_readonly("vertices", &SimplifiedSurfacePy::vertices,
             "Atom-pair midpoint vertices as Nx3 numpy array")
@@ -267,14 +265,13 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         .def_readonly("weighted", &SimplifiedSurfacePy::weighted)
         .def_readonly("alpha", &SimplifiedSurfacePy::alpha);
 
-    // Simplified surface convenience function
     m.def("get_simplified_surface",
         &get_simplified_surface_py,
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},
-        py::arg("weighted") = true,
-        py::arg("alpha") = true,
+        py::arg("weighted") = py::none(),
+        py::arg("alpha") = py::none(),
         "Compute simplified 2-color interface surface\n\n"
         "Each vertex = midpoint of one cross-color atom pair.\n"
         "Requires exactly 2 distinct colors in the input.\n\n"
@@ -283,12 +280,11 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "points : numpy.ndarray (Nx3)\n"
         "color_labels : list of int (exactly 2 distinct values)\n"
         "radii : list of float, optional\n"
-        "weighted : bool, default=True\n"
-        "alpha : bool, default=True\n\n"
+        "weighted : bool, optional (default: True iff radii given)\n"
+        "alpha : bool, optional (default: True iff radii given)\n\n"
         "Returns\n"
         "-------\n"
         "SimplifiedSurface");
 
-    // Version info
     m.attr("__version__") = "0.1.0";
 }
