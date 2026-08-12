@@ -47,9 +47,8 @@ tests/failed-random-generated-tests/
 
 .claude
 .cache
+index/
 julia/Manifest.toml
 CLAUDE.md
 formalism/
-
-
 

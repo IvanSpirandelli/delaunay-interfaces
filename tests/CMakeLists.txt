@@ -1,7 +1,3 @@
-# Basic test support
-enable_testing()
-
-# Add a simple test executable
 add_executable(test_basic test_basic.cpp)
 target_link_libraries(test_basic PRIVATE delaunay_interfaces)
 
@@ -49,6 +45,3 @@ add_test(NAME SimplifiedTest COMMAND test_simplified)
 # Speed test (not added to ctest — run manually)
 add_executable(test_speed test_speed.cpp)
 target_link_libraries(test_speed PRIVATE delaunay_interfaces)
-
-# You can add more sophisticated testing with Google Test or Catch2
-# For now, this is a minimal test setup
