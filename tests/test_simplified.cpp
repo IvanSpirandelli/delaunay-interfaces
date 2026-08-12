@@ -240,13 +240,13 @@ void test_get_simplified_surface_delaunay() {
 
     auto surface = get_simplified_surface(points, colors, {}, false, false);
 
-    std::cout << "  Vertices: " << surface.vertices.size() << "\n";
-    std::cout << "  Triangles: " << surface.triangles.size() << "\n";
-    std::cout << "  Quads: " << surface.quads.size() << "\n";
-    std::cout << "  Edges: " << surface.edges.size() << "\n";
-    std::cout << "  Generating tets: " << surface.simplices.generating_tetrahedra.size() << "\n";
-
-    assert(surface.vertices.size() > 0);
+    // Deterministic fixture: 3 generating tets yield 6 cross-color midpoints,
+    // 2 triangles (3-1 tets) and 1 quad (2-2 tet).
+    assert(surface.vertices.size() == 6);
+    assert(surface.triangles.size() == 2);
+    assert(surface.quads.size() == 1);
+    assert(surface.edges.size() == 0);
+    assert(surface.simplices.generating_tetrahedra.size() == 3);
     assert(surface.weighted == false);
     assert(surface.alpha == false);
 
@@ -256,12 +256,11 @@ void test_get_simplified_surface_delaunay() {
         assert(colors[atoms[0]] != colors[atoms[1]]);
     }
 
-    // Compare vertex count with barycentric
+    // The simplified surface must be strictly coarser than the barycentric one.
     auto bary_surface = get_barycentric_subdivision_and_filtration(
         points, colors, {}, false, false);
     auto& [bary_verts, bary_filt, bary_simp, bary_vai] = bary_surface;
-    std::cout << "  Barycentric vertices: " << bary_verts.size()
-              << " vs simplified: " << surface.vertices.size() << "\n";
+    assert(bary_verts.size() == 17);
     assert(surface.vertices.size() < bary_verts.size());
 
     std::cout << "  PASS\n";
@@ -279,15 +278,18 @@ void test_get_simplified_surface_weighted_alpha() {
         {2.0, 1.0, 0.0}
     };
     ColorLabels colors = {1, 1, 1, 2, 2, 2};
-    Radii radii(points.size(), 0.3);
+    // Radii large enough that the alpha complex actually contains
+    // multicolored simplices (0.3 left it empty and the test vacuous).
+    Radii radii(points.size(), 1.0);
 
     auto surface = get_simplified_surface(points, colors, radii, true, true);
 
-    std::cout << "  Vertices: " << surface.vertices.size() << "\n";
-    std::cout << "  Triangles: " << surface.triangles.size() << "\n";
-    std::cout << "  Quads: " << surface.quads.size() << "\n";
-    std::cout << "  Free edges: " << surface.edges.size() << "\n";
-
+    // Deterministic fixture: one 3-1 tet triangle plus two free bicolored
+    // edges survive the alpha filtering at r=1.0.
+    assert(surface.vertices.size() == 6);
+    assert(surface.triangles.size() == 1);
+    assert(surface.quads.size() == 0);
+    assert(surface.edges.size() == 2);
     assert(surface.weighted == true);
     assert(surface.alpha == true);
 
@@ -480,12 +482,14 @@ void test_random_mesh_manifold() {
               << " (" << surface.triangles.size() << " tri + "
               << surface.quads.size() << " quad), all unique\n";
 
-    // Euler characteristic sanity: V - E + F
+    // The fixture is deterministic (fixed seed), so counts are exact.
     int V = static_cast<int>(surface.vertices.size());
     int E = static_cast<int>(edge_count.size());
     int F = static_cast<int>(face_set.size());
-    std::cout << "  V=" << V << " E=" << E << " F=" << F
-              << " => chi=" << (V - E + F) << "\n";
+    assert(V == 200);
+    assert(E == 475);
+    assert(F == 266);
+    assert(V - E + F == -9);
 
     std::cout << "  PASS\n";
 }

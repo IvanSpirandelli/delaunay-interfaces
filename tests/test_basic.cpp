@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include <set>
+#include <map>
 #include <delaunay_interfaces/interface_generation.hpp>
 #include <delaunay_interfaces/barycentric_subdivision.hpp>
 #include <delaunay_interfaces/chromatic_partitioning.hpp>
@@ -145,13 +145,20 @@ void test_simple_delaunay_lower_star() {
         assert(lower.vertices.size() == upper.vertices.size());
         assert(lower.filtration.size() == upper.filtration.size());
 
-        // For edges and triangles, lower star (max) values >= upper star (min) values
-        for (size_t i = 0; i < lower.filtration.size(); ++i) {
-            auto& [l_simplex, l_val] = lower.filtration[i];
-            auto& [u_simplex, u_val] = upper.filtration[i];
-            if (l_simplex.size() == 1) {
-                // Vertex filtration values are identical
-                assert(std::abs(l_val - u_val) < 1e-10);
+        // Match simplices by key: vertex values are identical, while for
+        // edges and triangles the lower-star value (max over faces) must
+        // dominate the upper-star value (min over faces).
+        std::map<Simplex, double> upper_by_simplex;
+        for (const auto& [s, v] : upper.filtration) {
+            upper_by_simplex[s] = v;
+        }
+        for (const auto& [s, v] : lower.filtration) {
+            auto it = upper_by_simplex.find(s);
+            assert(it != upper_by_simplex.end());
+            if (s.size() == 1) {
+                assert(std::abs(v - it->second) < 1e-10);
+            } else {
+                assert(v >= it->second - 1e-10);
             }
         }
 
@@ -189,12 +196,18 @@ void test_weighted_alpha_lower_star() {
         assert(lower.vertices.size() == upper.vertices.size());
         assert(lower.filtration.size() == upper.filtration.size());
 
-        // Vertex values must match between upper and lower star
-        for (size_t i = 0; i < lower.filtration.size(); ++i) {
-            auto& [l_simplex, l_val] = lower.filtration[i];
-            auto& [u_simplex, u_val] = upper.filtration[i];
-            if (l_simplex.size() == 1) {
-                assert(std::abs(l_val - u_val) < 1e-10);
+        // Same property as the Delaunay lower-star test, matched by key.
+        std::map<Simplex, double> upper_by_simplex;
+        for (const auto& [s, v] : upper.filtration) {
+            upper_by_simplex[s] = v;
+        }
+        for (const auto& [s, v] : lower.filtration) {
+            auto it = upper_by_simplex.find(s);
+            assert(it != upper_by_simplex.end());
+            if (s.size() == 1) {
+                assert(std::abs(v - it->second) < 1e-10);
+            } else {
+                assert(v >= it->second - 1e-10);
             }
         }
 
@@ -227,11 +240,9 @@ void test_input_validation() {
 void test_generic_combination_counts() {
     std::cout << "Test: Generic Combination and Chain Counts\n";
 
-    // Test that process_simplex produces the correct number of combinations
-    // for each partition type by counting barycenters and filtration simplices.
-
-    // We use a single tetrahedron with known partition types.
-    // The BarycentricSubdivision counts should match the old hardcoded values.
+    // Exercises BarycentricSubdivision directly (rather than through the
+    // full pipeline) on one tetrahedron per partition type. Expected counts
+    // are derived in tests/ALPHA_CONSTRUCTION_TESTS.md.
 
     // 2-2 partition: 9 combinations, 8 triangles
     {
@@ -374,12 +385,8 @@ void test_lower_dimensional_simplices() {
             else if (simplex.size() == 3) n_tris++;
         }
         assert(sub.get_barycenters().size() == 4);
-        // 3 atomic at level 2, 1 non-atomic at level 3 → 3 edges (subset inclusion)
-        // Plus 3 more edges between atomic pairs that are subsets of the same level-3
-        // Actually: edges are all (i,j) where flat[i] ⊂ flat[j]
-        // Level 2: {0,1}, {0,2}, {1,2}; Level 3: {0,1,2}
-        // Edges: 3 (each level-2 ⊂ level-3)
-        // No chains of length 3, so no triangles
+        // Level 2: {0,1}, {0,2}, {1,2}; level 3: {0,1,2} — one inclusion edge
+        // per level-2 combo, and only 2 levels means no triangles.
         assert(n_edges == 3);
         assert(n_tris == 0);
         std::cout << "  Tricolored triangle (1-1-1): " << sub.get_barycenters().size()
@@ -449,11 +456,12 @@ void test_free_simplices_alpha() {
         auto simplices = generator.get_multicolored_simplices_weighted_alpha(
             points, colors, radii);
 
-        std::cout << "  Tetrahedra: " << simplices.generating_tetrahedra.size() << "\n";
-        std::cout << "  Free triangles: " << simplices.generating_free_triangles.size() << "\n";
-        std::cout << "  Free edges: " << simplices.generating_free_edges.size() << "\n";
+        // This fixture is deterministic: two multicolored alpha tetrahedra
+        // plus one free multicolored edge spanning the gap between clusters.
+        assert(simplices.generating_tetrahedra.size() == 2);
+        assert(simplices.generating_free_triangles.size() == 0);
+        assert(simplices.generating_free_edges.size() == 1);
 
-        // The subdivision should work with all simplex types
         BarycentricSubdivision sub(points, colors);
         for (const auto& tet : simplices.generating_tetrahedra) {
             sub.process_tetrahedron(tet);
@@ -466,17 +474,8 @@ void test_free_simplices_alpha() {
         }
 
         auto filtration = sub.get_filtration();
-        std::cout << "  Total barycenters: " << sub.get_barycenters().size() << "\n";
-        std::cout << "  Total filtration simplices: " << filtration.size() << "\n";
-
-        // Basic sanity: we should have some output
-        size_t total_simplices = simplices.generating_tetrahedra.size()
-            + simplices.generating_free_triangles.size()
-            + simplices.generating_free_edges.size();
-        if (total_simplices > 0) {
-            assert(sub.get_barycenters().size() > 0);
-            assert(filtration.size() > 0);
-        }
+        assert(sub.get_barycenters().size() == 14);
+        assert(filtration.size() == 54);
 
         std::cout << "  PASS\n";
     } catch (const std::exception& e) {

@@ -106,21 +106,16 @@ void test_filtration_structure() {
         else if (simplex.size() == 3) num_triangles++;
     }
 
-    std::cout << "  Vertices (0-simplices): " << num_vertices << "\n";
-    std::cout << "  Edges (1-simplices): " << num_edges << "\n";
-    std::cout << "  Triangles (2-simplices): " << num_triangles << "\n";
-    std::cout << "  Total simplices: " << surface.filtration.size() << "\n";
-
-    // Basic sanity checks
-    assert(num_vertices > 0);
-    assert(num_edges > 0);
-    assert(num_triangles > 0);
+    // The fixture is deterministic (fixed seed), so the counts are exact.
+    // The interface of this configuration is a disk-like surface:
+    // V - E + F = 33 - 92 + 60 = 1.
+    assert(num_vertices == 33);
+    assert(num_edges == 92);
+    assert(num_triangles == 60);
     assert(num_vertices + num_edges + num_triangles == surface.filtration.size());
 
-    // Euler characteristic check for a surface: V - E + F should be consistent
-    // For a closed surface embedded in 3D from tetrahedra subdivision
     int euler = static_cast<int>(num_vertices) - static_cast<int>(num_edges) + static_cast<int>(num_triangles);
-    std::cout << "  Euler characteristic (V - E + F): " << euler << "\n";
+    assert(euler == 1);
 
     std::cout << "  PASS\n";
 }

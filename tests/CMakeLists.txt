@@ -1,3 +1,7 @@
+# Tests assert with <cassert>; keep assertions active even in Release builds
+# (Release adds -DNDEBUG, which would compile every assert away).
+add_compile_options(-UNDEBUG)
+
 add_executable(test_basic test_basic.cpp)
 target_link_libraries(test_basic PRIVATE delaunay_interfaces)
 
@@ -5,7 +9,10 @@ add_test(NAME BasicTest COMMAND test_basic)
 
 # Ground truth validation test (small tetrahedra)
 add_executable(test_ground_truth test_ground_truth.cpp)
-target_link_libraries(test_ground_truth PRIVATE delaunay_interfaces)
+target_link_libraries(test_ground_truth PRIVATE delaunay_interfaces nlohmann_json::nlohmann_json)
+target_compile_definitions(test_ground_truth PRIVATE
+    TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+)
 
 add_test(NAME GroundTruthTest COMMAND test_ground_truth)
 
@@ -33,6 +40,9 @@ add_test(NAME CustomBarycenterTest COMMAND test_custom_barycenter)
 # Alpha complex construction tests
 add_executable(test_alpha_construction test_alpha_construction.cpp)
 target_link_libraries(test_alpha_construction PRIVATE delaunay_interfaces)
+target_compile_definitions(test_alpha_construction PRIVATE
+    TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/failed-random-generated-tests"
+)
 
 add_test(NAME AlphaConstructionTest COMMAND test_alpha_construction)
 
@@ -42,6 +52,9 @@ target_link_libraries(test_simplified PRIVATE delaunay_interfaces)
 
 add_test(NAME SimplifiedTest COMMAND test_simplified)
 
-# Speed test (not added to ctest — run manually)
-add_executable(test_speed test_speed.cpp)
-target_link_libraries(test_speed PRIVATE delaunay_interfaces)
+# Benchmark (not a test: prints timings, asserts nothing; run manually)
+option(BUILD_BENCHMARKS "Build benchmarks" OFF)
+if(BUILD_BENCHMARKS)
+    add_executable(benchmark_speed benchmark_speed.cpp)
+    target_link_libraries(benchmark_speed PRIVATE delaunay_interfaces)
+endif()

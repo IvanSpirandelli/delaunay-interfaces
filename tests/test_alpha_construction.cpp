@@ -759,8 +759,8 @@ static void dump_pointcloud(const std::string& dir, unsigned int seed,
     std::filesystem::create_directories(dir);
     std::string path = dir + "/seed_" + std::to_string(seed) + ".txt";
     std::ofstream out(path);
-    out << "# Should this ever produce an erroneous example.\n";
-    out << "# Please fix it :) ... or contact the developer.\n\n";
+    out << "# Failing input for test_random_pointcloud_consistency.\n";
+    out << "# Reproduce with test_random_pointcloud_consistency(seed).\n\n";
     out << "seed: " << seed << "\n";
     out << "failure: " << reason << "\n";
     out << "n_points: " << points.size() << "\n\n";
@@ -774,12 +774,11 @@ static void dump_pointcloud(const std::string& dir, unsigned int seed,
     std::cerr << "  Dumped failing point cloud to " << path << "\n";
 }
 
-static const std::string fail_dir =
-    std::filesystem::path(__FILE__).parent_path().string() + "/failed-random-generated-tests";
+// Failure dumps go to the build tree (TEST_OUTPUT_DIR, set by CMake), never
+// into the source tree.
+static const std::string fail_dir = TEST_OUTPUT_DIR;
 
 bool test_random_pointcloud_consistency(unsigned int seed = 42) {
-    std::cout << "Test: random 3-color point cloud consistency (seed=" << seed << ")\n";
-
     const int n_points = 25;
     const int n_colors = 3;
     std::mt19937 rng(seed);
@@ -802,13 +801,6 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
 
     auto c = count_filtration(filtration);
 
-    std::cout << "  " << verts.size() << " vertices, "
-              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
-              << c.total << " simplices\n";
-    std::cout << "  generating tets: " << mc_simplices.generating_tetrahedra.size()
-              << ", free tris: " << mc_simplices.generating_free_triangles.size()
-              << ", free edges: " << mc_simplices.generating_free_edges.size() << "\n";
-
     // Invariant 1: Triangle count from generating tetrahedra
     size_t n_31 = 0, n_22 = 0, n_211 = 0, n_1111 = 0;
     for (const auto& tet : mc_simplices.generating_tetrahedra) {
@@ -825,10 +817,6 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
     }
 
     size_t expected_triangles = n_31 * 6 + n_22 * 8 + n_211 * 10 + n_1111 * 12;
-    std::cout << "  tet splits: " << n_31 << " x 3-1, " << n_22 << " x 2-2, "
-              << n_211 << " x 2-1-1, " << n_1111 << " x 1-1-1-1\n";
-    std::cout << "  expected triangles: " << expected_triangles
-              << ", actual: " << c.triangles << "\n";
     if (c.triangles != expected_triangles) {
         dump_pointcloud(fail_dir, seed, points, radii, colors,
             "triangle count mismatch: expected " + std::to_string(expected_triangles)
@@ -851,8 +839,6 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
         }
     }
 
-    std::cout << "  expected free edges: " << expected_free_edges
-              << ", actual: " << fa.free_edges << "\n";
     if (fa.free_edges != expected_free_edges) {
         dump_pointcloud(fail_dir, seed, points, radii, colors,
             "free edge count mismatch: expected " + std::to_string(expected_free_edges)
@@ -862,8 +848,6 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
 
     // Invariant 3: Isolated vertices from free generating edges
     size_t expected_isolated = mc_simplices.generating_free_edges.size();
-    std::cout << "  expected isolated vertices: " << expected_isolated
-              << ", actual: " << fa.isolated_vertices << "\n";
     if (fa.isolated_vertices != expected_isolated) {
         dump_pointcloud(fail_dir, seed, points, radii, colors,
             "isolated vertex count mismatch: expected " + std::to_string(expected_isolated)
@@ -871,7 +855,6 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
         return false;
     }
 
-    std::cout << "  PASS\n";
     return true;
 }
 
@@ -917,9 +900,10 @@ int main() {
         test_bipyramid11111_alpha_058();
         test_bipyramid11111_alpha_062();
 
-        std::cout << "\n--- Random Point Cloud (100 random seeds) ---\n";
-        std::random_device rd;
-        std::mt19937 seed_gen(rd());
+        std::cout << "\n--- Random Point Cloud (100 deterministic seeds) ---\n";
+        // Fixed generator seed so every run tests the same 100 point clouds;
+        // a failure is reproducible from the seed printed in the dump file.
+        std::mt19937 seed_gen(20240815);
         int n_failed = 0;
         for (int i = 0; i < 100; i++) {
             unsigned int seed = seed_gen();

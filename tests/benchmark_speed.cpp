@@ -1,6 +1,7 @@
-// Speed test: random point clouds with all distinct colors
-// Measures wall-clock time for get_barycentric_subdivision_and_filtration
+// Benchmark: random point clouds with all distinct colors.
+// Measures wall-clock time for get_barycentric_subdivision_and_filtration.
 
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -51,9 +52,17 @@ TimingResult run_test(const InputData& data, bool weighted, bool alpha) {
     return {verts.size(), filtration.size(), ms};
 }
 
+void print_row(const std::string& n, const std::string& mode, const TimingResult& r) {
+    std::cout << "  " << std::setw(8) << n
+              << " | " << std::left << std::setw(12) << mode << std::right
+              << " | " << std::setw(8) << r.n_vertices
+              << " | " << std::setw(10) << r.n_simplices
+              << " | " << std::setw(8) << std::fixed << std::setprecision(1) << r.time_ms
+              << " ms\n";
+}
+
 int main() {
-    std::cout << "Speed Test: Random Point Clouds (all distinct colors)\n";
-    std::cout << "======================================================\n\n";
+    std::cout << "Benchmark: Random Point Clouds (all distinct colors)\n\n";
 
     std::cout << "  N points |     Mode     | Vertices |  Simplices |      Time\n";
     std::cout << "  ---------|--------------|----------|------------|----------\n";
@@ -61,17 +70,11 @@ int main() {
     for (size_t n : {10, 100, 1000, 10000, 25000, 50000}) {
         auto data = generate_input(n);
 
-        auto del = run_test(data, true, false);
-        printf("  %8zu | Delaunay     | %8zu | %10zu | %8.1f ms\n",
-               n, del.n_vertices, del.n_simplices, del.time_ms);
-
-        auto alpha = run_test(data, true, true);
-        printf("  %8s | Alpha        | %8zu | %10zu | %8.1f ms\n",
-               "", alpha.n_vertices, alpha.n_simplices, alpha.time_ms);
+        print_row(std::to_string(n), "Delaunay", run_test(data, true, false));
+        print_row("", "Alpha", run_test(data, true, true));
 
         std::cout << "  ---------|--------------|----------|------------|----------\n";
     }
 
-    std::cout << "\n";
     return 0;
 }
