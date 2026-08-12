@@ -28,6 +28,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_library(delaunay_interfaces SHARED
     src/interface_generation.cpp
     src/barycentric_subdivision.cpp
+    src/simplified_subdivision.cpp
 )
 
 target_include_directories(delaunay_interfaces PUBLIC

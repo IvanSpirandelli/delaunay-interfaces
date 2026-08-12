@@ -82,6 +82,47 @@ public:
     }
 };
 
+// Wrapper for SimplifiedSurface with numpy-friendly vertices
+struct SimplifiedSurfacePy {
+    Eigen::MatrixXd vertices;
+    std::vector<std::array<int32_t, 3>> triangles;
+    std::vector<std::array<int32_t, 4>> quads;
+    std::vector<std::array<int32_t, 2>> edges;
+    VertexAtomIndices vertex_atom_indices;
+    std::vector<double> vertex_filtration;
+    Tetrahedra generating_tetrahedra;
+    std::vector<std::vector<int>> generating_free_triangles;
+    std::vector<std::vector<int>> generating_free_edges;
+    bool weighted;
+    bool alpha;
+
+    SimplifiedSurfacePy(const SimplifiedSurface& surface)
+        : vertices(points_to_numpy(surface.vertices))
+        , triangles(surface.triangles)
+        , quads(surface.quads)
+        , edges(surface.edges)
+        , vertex_atom_indices(surface.vertex_atom_indices)
+        , vertex_filtration(surface.vertex_filtration)
+        , generating_tetrahedra(surface.simplices.generating_tetrahedra)
+        , generating_free_triangles(surface.simplices.generating_free_triangles)
+        , generating_free_edges(surface.simplices.generating_free_edges)
+        , weighted(surface.weighted)
+        , alpha(surface.alpha) {}
+};
+
+// Wrapper for get_simplified_surface
+SimplifiedSurfacePy get_simplified_surface_py(
+    const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
+    const ColorLabels& color_labels,
+    const Radii& radii = {},
+    bool weighted = true,
+    bool alpha = true
+) {
+    Points points = numpy_to_points(points_arr);
+    auto surface = get_simplified_surface(points, color_labels, radii, weighted, alpha);
+    return SimplifiedSurfacePy(surface);
+}
+
 // Wrapper for convenience function
 std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtration_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
@@ -202,6 +243,51 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "tuple of (vertices, filtration)\n"
         "    vertices: Nx3 numpy array of barycenter points\n"
         "    filtration: list of (simplex, filtration_value) tuples");
+
+    // Bind SimplifiedSurface (Python wrapper)
+    py::class_<SimplifiedSurfacePy>(m, "SimplifiedSurface")
+        .def_readonly("vertices", &SimplifiedSurfacePy::vertices,
+            "Atom-pair midpoint vertices as Nx3 numpy array")
+        .def_readonly("triangles", &SimplifiedSurfacePy::triangles,
+            "Triangle faces from 3-1 tets (list of 3-element arrays)")
+        .def_readonly("quads", &SimplifiedSurfacePy::quads,
+            "Quad faces from 2-2 tets (list of 4-element arrays, cyclic order)")
+        .def_readonly("edges", &SimplifiedSurfacePy::edges,
+            "Free edges from 2-1 free triangles (list of 2-element arrays)")
+        .def_readonly("vertex_atom_indices", &SimplifiedSurfacePy::vertex_atom_indices,
+            "For each vertex, the pair [atom_a, atom_b] of input atom indices")
+        .def_readonly("vertex_filtration", &SimplifiedSurfacePy::vertex_filtration,
+            "Filtration value (inter-atom distance) per vertex")
+        .def_readonly("generating_tetrahedra", &SimplifiedSurfacePy::generating_tetrahedra,
+            "Generating multicolored tetrahedra")
+        .def_readonly("generating_free_triangles", &SimplifiedSurfacePy::generating_free_triangles,
+            "Generating free multicolored triangles")
+        .def_readonly("generating_free_edges", &SimplifiedSurfacePy::generating_free_edges,
+            "Generating free multicolored edges")
+        .def_readonly("weighted", &SimplifiedSurfacePy::weighted)
+        .def_readonly("alpha", &SimplifiedSurfacePy::alpha);
+
+    // Simplified surface convenience function
+    m.def("get_simplified_surface",
+        &get_simplified_surface_py,
+        py::arg("points"),
+        py::arg("color_labels"),
+        py::arg("radii") = Radii{},
+        py::arg("weighted") = true,
+        py::arg("alpha") = true,
+        "Compute simplified 2-color interface surface\n\n"
+        "Each vertex = midpoint of one cross-color atom pair.\n"
+        "Requires exactly 2 distinct colors in the input.\n\n"
+        "Parameters\n"
+        "----------\n"
+        "points : numpy.ndarray (Nx3)\n"
+        "color_labels : list of int (exactly 2 distinct values)\n"
+        "radii : list of float, optional\n"
+        "weighted : bool, default=True\n"
+        "alpha : bool, default=True\n\n"
+        "Returns\n"
+        "-------\n"
+        "SimplifiedSurface");
 
     // Version info
     m.attr("__version__") = "0.1.0";

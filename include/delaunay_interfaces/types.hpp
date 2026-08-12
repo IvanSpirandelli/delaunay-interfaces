@@ -49,4 +49,20 @@ struct InterfaceSurface {
     bool lower_star;
 };
 
+// Simplified 2-color surface: each vertex = one cross-color atom pair midpoint
+using Triangle = std::array<int32_t, 3>;
+using Quad = std::array<int32_t, 4>;
+
+struct SimplifiedSurface {
+    Points vertices;                         // Midpoints of cross-color edges
+    std::vector<Triangle> triangles;         // Triangle faces (from 3-1 tets)
+    std::vector<Quad> quads;                 // Quad faces (from 2-2 tets)
+    std::vector<std::array<int32_t, 2>> edges;  // Free edges (from free triangles)
+    VertexAtomIndices vertex_atom_indices;    // Each entry has exactly 2 atom indices
+    std::vector<double> vertex_filtration;   // Filtration value per vertex
+    MulticoloredSimplices simplices;         // Generating structures
+    bool weighted;
+    bool alpha;
+};
+
 } // namespace delaunay_interfaces

@@ -40,6 +40,12 @@ target_link_libraries(test_alpha_construction PRIVATE delaunay_interfaces)
 
 add_test(NAME AlphaConstructionTest COMMAND test_alpha_construction)
 
+# Simplified subdivision tests
+add_executable(test_simplified test_simplified.cpp)
+target_link_libraries(test_simplified PRIVATE delaunay_interfaces)
+
+add_test(NAME SimplifiedTest COMMAND test_simplified)
+
 # Speed test (not added to ctest — run manually)
 add_executable(test_speed test_speed.cpp)
 target_link_libraries(test_speed PRIVATE delaunay_interfaces)

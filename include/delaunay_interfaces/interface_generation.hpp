@@ -70,4 +70,14 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_bar
     bool lower_star = false
 );
 
+// Simplified 2-color surface: each vertex = midpoint of one cross-color atom pair.
+// Requires exactly 2 distinct colors in the input.
+SimplifiedSurface get_simplified_surface(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii = {},
+    bool weighted = true,
+    bool alpha = true
+);
+
 } // namespace delaunay_interfaces
