@@ -8,24 +8,28 @@ using GLMakie
 using GLMakie.Makie.GeometryBasics
 using GLMakie.Colors
 
-# =============================================================================
-# Color Constants
-#
-# Configuration colors use Dark2_3 for distinguishing molecules/colors
-# Interface colors use viridis for filtration values
-# =============================================================================
-
 const DEFAULT_INTERFACE_COLORMAP = :viridis
 const DEFAULT_NUM_COLORS = 4
 
-# Configuration/point cloud colormap - categorical colors for distinct labels
-const CONF_GRADIENT = cgrad(:Dark2_4, 4, categorical=true)
-const CONF_COLORMAP = [CONF_GRADIENT[i] for i in 1:4]
+# Categorical colors for point/molecule labels; viridis is used for filtration values.
+const CONF_GRADIENT = cgrad(:Dark2_4, DEFAULT_NUM_COLORS, categorical=true)
+const CONF_COLORMAP = [CONF_GRADIENT[i] for i in 1:DEFAULT_NUM_COLORS]
 const DEFAULT_POINT_CLOUD_COLORMAP = :Dark2_4
 
-# =============================================================================
-# Mesh Generation
-# =============================================================================
+"""
+    vertex_filtration_values(surface::InterfaceSurface)
+
+Filtration value of each barycenter vertex, keyed by vertex ID.
+"""
+function vertex_filtration_values(surface::InterfaceSurface)
+    vertex_vals = Dict{Int, Float64}()
+    for (simplex, val) in surface.filtration
+        if length(simplex) == 1
+            vertex_vals[simplex[1]] = val
+        end
+    end
+    return vertex_vals
+end
 
 """
     generate_colored_mesh(surface::InterfaceSurface; max_value=Inf)
@@ -50,21 +54,11 @@ function generate_colored_mesh(surface::InterfaceSurface; max_value::Real=Inf)
     points = [Point3f(v...) for v in surface.vertices]
     mesh = GeometryBasics.Mesh(points, faces)
 
-    # Extract vertex filtration values for coloring, keyed by vertex ID
-    vertex_vals = Dict{Int, Float64}()
-    for (simplex, val) in surface.filtration
-        if length(simplex) == 1
-            vertex_vals[simplex[1]] = val
-        end
-    end
+    vertex_vals = vertex_filtration_values(surface)
     vertex_colors = [get(vertex_vals, i, 0.0) for i in 1:length(surface.vertices)]
 
     return mesh, vertex_colors
 end
-
-# =============================================================================
-# Interface Visualization
-# =============================================================================
 
 """
     draw_interface!(scene::LScene, surface::InterfaceSurface; kwargs...)
@@ -108,7 +102,7 @@ function draw_interface!(
 end
 
 """
-    draw_interface!(scene::LScene, surface::InterfaceSurface, points, color_labels, radii; kwargs...)
+    draw_interface!(scene::LScene, surface::InterfaceSurface, points, color_labels; kwargs...)
 
 Draw an interface surface with optional multicolored point overlay.
 
@@ -124,8 +118,7 @@ function draw_interface!(
     scene::LScene,
     surface::InterfaceSurface,
     points::Vector{Vector{Float64}},
-    color_labels::Vector{Int},
-    radii::Vector{Float64}=Float64[];
+    color_labels::Vector{Int};
     show_wireframe::Bool=false,
     show_barycenters::Bool=false,
     show_multicolored_points::Bool=false,
@@ -182,15 +175,14 @@ function interface_figure(
 end
 
 """
-    interface_figure(surface, points, color_labels, radii; kwargs...)
+    interface_figure(surface, points, color_labels; kwargs...)
 
 Create a figure displaying an interface surface with point cloud overlay options.
 """
 function interface_figure(
     surface::InterfaceSurface,
     points::Vector{Vector{Float64}},
-    color_labels::Vector{Int},
-    radii::Vector{Float64}=Float64[];
+    color_labels::Vector{Int};
     show_axis::Bool=false,
     show_wireframe::Bool=false,
     show_barycenters::Bool=false,
@@ -202,7 +194,7 @@ function interface_figure(
     fig = Figure()
     scene = LScene(fig[1, 1]; show_axis=show_axis)
 
-    draw_interface!(scene, surface, points, color_labels, radii;
+    draw_interface!(scene, surface, points, color_labels;
         show_wireframe=show_wireframe,
         show_barycenters=show_barycenters,
         show_multicolored_points=show_multicolored_points,
@@ -214,14 +206,10 @@ function interface_figure(
     return fig
 end
 
-# =============================================================================
-# Point Cloud Visualization
-# =============================================================================
-
 """
     draw_point_cloud!(scene::LScene, points, color_labels, radii; kwargs...)
 
-Draw a point cloud as spheres.
+Draw a point cloud as spheres. Radii set the sphere sizes when given.
 
 # Keyword Arguments
 - `colormap`: Colormap for the points (default: `:Dark2_4`)
@@ -270,10 +258,6 @@ function point_cloud_figure(
     return fig
 end
 
-# =============================================================================
-# Combined Visualization
-# =============================================================================
-
 """
     interface_and_point_cloud_figure(surface, points, color_labels, radii; kwargs...)
 
@@ -302,12 +286,10 @@ function interface_and_point_cloud_figure(
 )
     fig = Figure()
 
-    # Point cloud on the left
     gl_points = GridLayout(fig[1, 1])
     scene_points = LScene(gl_points[1, 1]; show_axis=show_axis)
     draw_point_cloud!(scene_points, points, color_labels, radii; colormap=point_colormap)
 
-    # Interface on the right
     gl_interface = GridLayout(fig[1, 2])
     scene_interface = LScene(gl_interface[1, 1]; show_axis=show_axis)
     draw_interface!(scene_interface, surface;
@@ -319,16 +301,11 @@ function interface_and_point_cloud_figure(
         draw_free_simplices!(scene_interface, surface)
     end
 
-    # Add titles
     Label(gl_points[1, 1, Top()], "Atom Centers"; fontsize=16)
     Label(gl_interface[1, 1, Top()], "Interface"; fontsize=16)
 
     return fig
 end
-
-# =============================================================================
-# Filtration Visualization
-# =============================================================================
 
 """
     filtration_figure(surface::InterfaceSurface; kwargs...)
@@ -359,11 +336,10 @@ function filtration_figure(
         scenekw=(lights=[AmbientLight(RGBf(1.0, 1.0, 1.0))],)
     )
 
-    # Observable data
     current_mesh = @lift(all_meshes[$slider.value])
     current_colors = @lift(all_colors[$slider.value])
 
-    # Use final colorrange for consistent coloring
+    # The final level's colorrange keeps colors consistent across slider positions.
     final_colors = last(all_colors)
     colorrange = isempty(final_colors) ? (0.0, 1.0) : (minimum(final_colors), maximum(final_colors))
 
@@ -379,10 +355,6 @@ function filtration_figure(
 
     return fig
 end
-
-# =============================================================================
-# Sequence Visualization
-# =============================================================================
 
 """
     sequence_figure(surfaces, points_seq, labels_seq, radii_seq; kwargs...)
@@ -423,7 +395,8 @@ function sequence_figure(
     all_meshes = first.(colored_meshes)
     all_colors = last.(colored_meshes)
 
-    individual_ranges = [(minimum(c), maximum(c)) for c in all_colors if !isempty(c)]
+    # One range per frame so frames with no triangles fall back cleanly.
+    individual_ranges = [isempty(c) ? (0.0, 1.0) : (minimum(c), maximum(c)) for c in all_colors]
 
     fig = Figure(; fontsize=12)
     slider = Slider(fig[2, 1]; range=1:n, startvalue=1)
@@ -432,7 +405,6 @@ function sequence_figure(
         scenekw=(lights=[AmbientLight(RGBf(1.0, 1.0, 1.0))],)
     )
 
-    # Observable data
     current_mesh = @lift(all_meshes[$slider.value])
     current_colors = @lift(all_colors[$slider.value])
 
@@ -440,7 +412,7 @@ function sequence_figure(
         all_vals = vcat(all_colors...)
         isempty(all_vals) ? (0.0, 1.0) : (minimum(all_vals), maximum(all_vals))
     else
-        @lift(isempty(individual_ranges) ? (0.0, 1.0) : individual_ranges[$slider.value])
+        @lift(individual_ranges[$slider.value])
     end
 
     mesh!(scene, current_mesh;
@@ -478,10 +450,6 @@ function sequence_figure(
 
     return fig
 end
-
-# =============================================================================
-# Helper Functions
-# =============================================================================
 
 """
     draw_barycenters!(scene, points; markersize=15)
@@ -541,9 +509,8 @@ function draw_free_simplices!(
 )
     free_edge_pts, free_edge_colors, free_vert_pts, free_vert_colors = compute_free_simplex_data(surface)
 
-    # Compute colorrange from all vertex filtration values if not provided
     if isnothing(colorrange)
-        all_vals = [val for (simplex, val) in surface.filtration if length(simplex) == 1]
+        all_vals = collect(values(vertex_filtration_values(surface)))
         colorrange = isempty(all_vals) ? (0.0, 1.0) : (minimum(all_vals), maximum(all_vals))
     end
 
@@ -567,24 +534,15 @@ Find filtration simplices that are not faces of higher-dimensional simplices.
 """
 function compute_free_simplex_data(surface::InterfaceSurface)
     barycenters = [Point3f(v...) for v in surface.vertices]
+    vertex_vals = vertex_filtration_values(surface)
 
-    # Build vertex filtration values
-    vertex_vals = Dict{Int, Float64}()
-    for (simplex, val) in surface.filtration
-        if length(simplex) == 1
-            vertex_vals[simplex[1]] = val
-        end
-    end
-
-    # Collect all edges and triangles from the filtration
     edges = Set{Tuple{Int32,Int32}}()
     triangle_edges = Set{Tuple{Int32,Int32}}()
     edge_verts = Set{Int32}()
 
     for (simplex, _) in surface.filtration
         if length(simplex) == 2
-            e = minmax(simplex[1], simplex[2])
-            push!(edges, e)
+            push!(edges, minmax(simplex[1], simplex[2]))
         elseif length(simplex) == 3
             for i in 1:3, j in (i+1):3
                 push!(triangle_edges, minmax(simplex[i], simplex[j]))
@@ -592,7 +550,7 @@ function compute_free_simplex_data(surface::InterfaceSurface)
         end
     end
 
-    # Free edges: in filtration but not face of any triangle
+    # Free edges: in the filtration but not a face of any triangle.
     free_edges = setdiff(edges, triangle_edges)
     free_edge_pts = Point3f[]
     free_edge_colors = Float64[]
@@ -602,17 +560,15 @@ function compute_free_simplex_data(surface::InterfaceSurface)
         push!(edge_verts, i, j)
     end
 
-    # Also collect vertices that are endpoints of triangle edges
     for (i, j) in triangle_edges
         push!(edge_verts, i, j)
     end
 
-    # Free vertices: in filtration but not endpoint of any edge
-    all_edge_verts = edge_verts
+    # Free vertices: in the filtration but not an endpoint of any edge.
     free_vert_pts = Point3f[]
     free_vert_colors = Float64[]
     for (simplex, val) in surface.filtration
-        if length(simplex) == 1 && !(simplex[1] in all_edge_verts)
+        if length(simplex) == 1 && !(simplex[1] in edge_verts)
             push!(free_vert_pts, barycenters[simplex[1]])
             push!(free_vert_colors, val)
         end
@@ -661,15 +617,11 @@ function draw_multicolored_edges!(
     edge_cols = RGBA[]
     for (i, j) in mc_edges
         push!(edge_pts, pts[i], pts[j])
-        push!(edge_cols, RGBA(CONF_COLORMAP[mod1(colors[i], 4)]),
-                         RGBA(CONF_COLORMAP[mod1(colors[j], 4)]))
+        push!(edge_cols, RGBA(CONF_COLORMAP[mod1(colors[i], DEFAULT_NUM_COLORS)]),
+                         RGBA(CONF_COLORMAP[mod1(colors[j], DEFAULT_NUM_COLORS)]))
     end
     linesegments!(scene, edge_pts; color=edge_cols, linewidth=linewidth)
 end
-
-# =============================================================================
-# Dual-Panel Visualization
-# =============================================================================
 
 """
     subdivision_figure(points, colors, surface; title="", show_free_simplices=false)
@@ -702,26 +654,13 @@ function subdivision_figure(
 )
     fig = Figure()
 
-    # Left: LScene with viridis distance-colored interface
     Label(fig[1, 1, Top()], "Point Cloud and Interface"; fontsize=16)
     scene_left = LScene(fig[1, 1]; show_axis=false)
 
-    vertices = surface.vertices
-    triangles = [Int.(simplex) for (simplex, _) in surface.filtration if length(simplex) == 3]
+    mesh_obj, mesh_colors = generate_colored_mesh(surface)
+    has_mesh = !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
 
-    if !isempty(triangles) && !isempty(vertices)
-        points_gb = [Point3f(v...) for v in vertices]
-        faces_gb = [TriangleFace(t...) for t in triangles]
-        mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
-
-        vertex_vals = Dict{Int, Float64}()
-        for (simplex, val) in surface.filtration
-            if length(simplex) == 1
-                vertex_vals[simplex[1]] = val
-            end
-        end
-        mesh_colors = [get(vertex_vals, i, 0.0) for i in 1:length(vertices)]
-
+    if has_mesh
         mesh!(scene_left, mesh_obj;
             color=mesh_colors,
             colormap=:viridis,
@@ -731,31 +670,24 @@ function subdivision_figure(
         wireframe!(scene_left, mesh_obj; color=:white, linewidth=1)
     end
 
-    # Draw multicolored edges of the complex
     draw_multicolored_edges!(scene_left, points, colors, surface)
 
     if show_free_simplices
         draw_free_simplices!(scene_left, surface)
     end
 
-    # Draw original points colored by label
     pts_mat = reduce(hcat, points)'
-    point_colors = [CONF_COLORMAP[mod1(c, 4)] for c in colors]
+    point_colors = [CONF_COLORMAP[mod1(c, DEFAULT_NUM_COLORS)] for c in colors]
     scatter!(scene_left, pts_mat[:, 1], pts_mat[:, 2], pts_mat[:, 3];
              color=point_colors, markersize=15)
 
-    # Right: Axis3 with monocolor mesh, wireframe, and barycenters
     ax2 = Axis3(fig[1, 2]; aspect=:data, title="Interface and Barycenters")
 
-    if !isempty(triangles) && !isempty(vertices)
-        points_gb = [Point3f(v...) for v in vertices]
-        faces_gb = [TriangleFace(t...) for t in triangles]
-        mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
-
+    if has_mesh
         mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7), shading=NoShading)
         wireframe!(ax2, mesh_obj; color=:black, linewidth=1)
 
-        bary_pts = reduce(hcat, vertices)'
+        bary_pts = reduce(hcat, surface.vertices)'
         scatter!(ax2, bary_pts[:, 1], bary_pts[:, 2], bary_pts[:, 3];
                  color=:red, markersize=10)
     end
@@ -788,28 +720,12 @@ function interface_only_figure(
     show_wireframe::Bool=false
 )
     fig = Figure()
-
-    # LScene with lighting for the interface
     scene = LScene(fig[1, 1]; show_axis=false)
 
-    vertices = surface.vertices
-    triangles = [Int.(simplex) for (simplex, _) in surface.filtration if length(simplex) == 3]
+    mesh_obj, mesh_colors = generate_colored_mesh(surface)
 
-    if !isempty(triangles) && !isempty(vertices)
-        points_gb = [Point3f(v...) for v in vertices]
-        faces_gb = [TriangleFace(t...) for t in triangles]
-        mesh_obj = GeometryBasics.Mesh(points_gb, faces_gb)
-
-        # Get filtration values for vertices to color by distance
-        vertex_vals = Dict{Int, Float64}()
-        for (simplex, val) in surface.filtration
-            if length(simplex) == 1
-                vertex_vals[simplex[1]] = val
-            end
-        end
-        mesh_colors = [get(vertex_vals, i, 0.0) for i in 1:length(vertices)]
-
-        # Mesh with viridis coloring (lighting enabled by default in LScene)
+    if !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
+        # Lighting stays enabled here (no NoShading), unlike draw_interface!.
         mesh!(scene, mesh_obj;
             color=mesh_colors,
             colormap=:viridis,
@@ -828,11 +744,7 @@ function interface_only_figure(
     return fig
 end
 
-# =============================================================================
-# Exports
-# =============================================================================
-
-export generate_colored_mesh
+export vertex_filtration_values, generate_colored_mesh
 export draw_interface!, interface_figure
 export draw_point_cloud!, point_cloud_figure
 export draw_free_simplices!, compute_free_simplex_data

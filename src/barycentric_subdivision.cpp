@@ -1,118 +1,38 @@
 #include "delaunay_interfaces/barycentric_subdivision.hpp"
 #include "delaunay_interfaces/chromatic_partitioning.hpp"
-#include "delaunay_interfaces/interface_generation.hpp"
+#include "subdivision_driver.hpp"
 #include <algorithm>
-#include <stdexcept>
+#include <bitset>
 
 namespace delaunay_interfaces {
 
-BarycentricSubdivision::BarycentricSubdivision(
-    const Points& points,
-    const ColorLabels& color_labels,
-    bool lower_star
-) : points_(points), color_labels_(color_labels), lower_star_(lower_star) {}
+namespace {
 
-double BarycentricSubdivision::star_value(double a, double b) const {
-    return lower_star_ ? std::max(a, b) : std::min(a, b);
-}
+// One multicolored sub-simplex of the processed simplex: a choice of >= 2
+// parts and a non-empty subset of each chosen part.
+struct Combination {
+    std::vector<std::vector<int>> parts; // the sub-partition, one entry per chosen part
+    std::vector<int> flat;               // sorted union of all chosen vertices
+};
 
-double BarycentricSubdivision::star_value(std::initializer_list<double> vals) const {
-    return lower_star_ ? std::max(vals) : std::min(vals);
-}
-
-double BarycentricSubdivision::star_value(const std::vector<double>& vals) const {
-    if (vals.empty()) return 0.0;
-    double result = vals[0];
-    for (size_t i = 1; i < vals.size(); ++i) {
-        result = lower_star_ ? std::max(result, vals[i]) : std::min(result, vals[i]);
-    }
-    return result;
-}
-
-Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices) const {
-    return compute_barycenter(points_, vertices);
-}
-
-Point3D BarycentricSubdivision::get_barycenter_from_points(const std::vector<Point3D>& points) const {
-    Point3D center = Point3D::Zero();
-    for (const auto& p : points) {
-        center += p;
-    }
-    return center / static_cast<double>(points.size());
-}
-
-double BarycentricSubdivision::compute_filtration_value(const Partition& partitioning) const {
-    size_t k = partitioning.size();
-    if (k < 2) return 0.0;
-
-    std::vector<Point3D> bcs;
-    bcs.reserve(k);
-    for (const auto& part : partitioning) {
-        bcs.push_back(get_barycenter(part));
-    }
-
-    double sum = 0.0;
-    int count = 0;
-    for (size_t i = 0; i < k; ++i) {
-        for (size_t j = i + 1; j < k; ++j) {
-            sum += euclidean_distance(bcs[i], bcs[j]);
-            ++count;
-        }
-    }
-    return sum / count;
-}
-
-BarycentricSubdivision::SimplexInfo BarycentricSubdivision::get_or_create_simplex(
-    const std::vector<std::vector<int>>& partitioning
-) {
-    // Create sorted key from all vertices
-    std::vector<int> key;
-    for (const auto& part : partitioning) {
-        key.insert(key.end(), part.begin(), part.end());
-    }
-    std::sort(key.begin(), key.end());
-
-    auto it = simplex_map_.find(key);
-    if (it != simplex_map_.end()) {
-        return SimplexInfo{it->second.first, it->second.second, false};
-    } else {
-        int32_t id = next_simplex_id_++;
-        double value = compute_filtration_value(partitioning);
-        simplex_map_[key] = {id, value};
-        return SimplexInfo{id, value, true};
-    }
-}
-
-void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
-    auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
-    size_t k = partition.size();
-    if (k < 2) return;
-
-    // --- 1. Enumerate all multicolored combinations ---
-    // For each subset I ⊆ {0..k-1} with |I| >= 2,
-    // enumerate all tuples of non-empty subsets S'_i ⊆ partition[i] for i ∈ I.
-
-    struct Combination {
-        std::vector<std::vector<int>> parts; // the partition for get_or_create_simplex
-        std::vector<int> flat;               // sorted union of all vertices
-    };
-
+// Enumerates every subset I of the parts with |I| >= 2, crossed with every
+// tuple of non-empty subsets of the parts in I.
+std::vector<Combination> enumerate_multicolored_combinations(const Partition& partition) {
+    const int k = static_cast<int>(partition.size());
     std::vector<Combination> combinations;
 
-    for (int mask = 3; mask < (1 << k); ++mask) {
-        if (__builtin_popcount(mask) < 2) continue;
+    for (int mask = 0; mask < (1 << k); ++mask) {
+        if (std::bitset<32>(mask).count() < 2) continue;
 
-        // Collect part indices in this subset
         std::vector<int> part_indices;
-        for (int i = 0; i < static_cast<int>(k); ++i) {
+        for (int i = 0; i < k; ++i) {
             if (mask & (1 << i)) part_indices.push_back(i);
         }
 
-        // Cross-product of non-empty subsets of each selected part
         std::vector<std::vector<std::vector<int>>> partial = {{}};
         for (int pi : part_indices) {
             const auto& part = partition[pi];
-            int n = static_cast<int>(part.size());
+            const int n = static_cast<int>(part.size());
             std::vector<std::vector<std::vector<int>>> next;
             for (int smask = 1; smask < (1 << n); ++smask) {
                 std::vector<int> subset;
@@ -139,25 +59,22 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         }
     }
 
-    size_t n = combinations.size();
+    return combinations;
+}
 
-    // --- 2. Get or create simplices, compute filtration values ---
-    std::vector<std::pair<int32_t, double>> vertices(n);
-    std::vector<bool> created(n);
+bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
+    return std::includes(big.begin(), big.end(), small.begin(), small.end());
+}
 
-    for (size_t i = 0; i < n; ++i) {
-        auto info = get_or_create_simplex(combinations[i].parts);
-        vertices[i] = {info.id, info.value};
-        created[i] = info.newly_created;
-    }
-
-    // --- 3. Compute barycenters hierarchically ---
-    // Min-level (smallest flat set size) → barycenter from original points
-    // All others → average of min-level barycenters whose flat set ⊆ this flat set
-
-    auto is_subset = [](const std::vector<int>& small, const std::vector<int>& big) {
-        return std::includes(big.begin(), big.end(), small.begin(), small.end());
-    };
+// Barycenter positions per combination. Min-level combinations (smallest flat
+// set) get the flat average of the original points; every other combination is
+// the average of the min-level barycenters whose flat set it contains. For
+// 2-color partitions this equals the flat average; for 3+ colors it differs.
+std::vector<Point3D> hierarchical_barycenters(
+    const std::vector<Combination>& combinations,
+    const Points& points
+) {
+    const size_t n = combinations.size();
 
     size_t min_level = combinations[0].flat.size();
     for (size_t i = 1; i < n; ++i) {
@@ -171,92 +88,171 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         }
     }
 
-    std::vector<Point3D> new_barycenters(n);
-
-    // Min-level barycenters: flat average of original points
+    std::vector<Point3D> barycenters(n);
     for (size_t idx : min_level_indices) {
-        new_barycenters[idx] = get_barycenter(combinations[idx].flat);
+        barycenters[idx] = compute_barycenter(points, combinations[idx].flat);
     }
 
-    // All other barycenters: average of min-level barycenters with flat ⊆ this flat
     for (size_t i = 0; i < n; ++i) {
         if (combinations[i].flat.size() == min_level) continue;
-        std::vector<Point3D> child_bcs;
+        Point3D sum = Point3D::Zero();
+        int count = 0;
         for (size_t midx : min_level_indices) {
             if (is_subset(combinations[midx].flat, combinations[i].flat)) {
-                child_bcs.push_back(new_barycenters[midx]);
+                sum += barycenters[midx];
+                ++count;
             }
         }
-        new_barycenters[i] = get_barycenter_from_points(child_bcs);
+        barycenters[i] = sum / static_cast<double>(count);
     }
 
-    // Add newly created barycenters
+    return barycenters;
+}
+
+// Maximal chains of combinations under flat-set inclusion, one element per
+// level. Only defined when there are >= 3 distinct levels; each chain becomes
+// a higher-dimensional simplex of the subdivision.
+std::vector<std::vector<size_t>> enumerate_maximal_chains(
+    const std::vector<Combination>& combinations
+) {
+    std::map<size_t, std::vector<size_t>> levels;
+    for (size_t i = 0; i < combinations.size(); ++i) {
+        levels[combinations[i].flat.size()].push_back(i);
+    }
+    if (levels.size() < 3) return {};
+
+    std::vector<std::vector<size_t>> chains;
+    auto level_it = levels.begin();
+    for (size_t idx : level_it->second) {
+        chains.push_back({idx});
+    }
+
+    for (++level_it; level_it != levels.end(); ++level_it) {
+        std::vector<std::vector<size_t>> new_chains;
+        for (const auto& chain : chains) {
+            size_t last = chain.back();
+            for (size_t idx : level_it->second) {
+                if (is_subset(combinations[last].flat, combinations[idx].flat)) {
+                    auto extended = chain;
+                    extended.push_back(idx);
+                    new_chains.push_back(std::move(extended));
+                }
+            }
+        }
+        chains = std::move(new_chains);
+    }
+
+    return chains;
+}
+
+} // namespace
+
+BarycentricSubdivision::BarycentricSubdivision(
+    const Points& points,
+    const ColorLabels& color_labels,
+    bool lower_star
+) : points_(points), color_labels_(color_labels), lower_star_(lower_star) {}
+
+double BarycentricSubdivision::star_value(double a, double b) const {
+    return lower_star_ ? std::max(a, b) : std::min(a, b);
+}
+
+double BarycentricSubdivision::star_value(const std::vector<double>& vals) const {
+    if (vals.empty()) return 0.0;
+    double result = vals[0];
+    for (size_t i = 1; i < vals.size(); ++i) {
+        result = star_value(result, vals[i]);
+    }
+    return result;
+}
+
+Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices) const {
+    return compute_barycenter(points_, vertices);
+}
+
+double BarycentricSubdivision::compute_filtration_value(const Partition& partitioning) const {
+    const size_t k = partitioning.size();
+    if (k < 2) return 0.0;
+
+    std::vector<Point3D> bcs;
+    bcs.reserve(k);
+    for (const auto& part : partitioning) {
+        bcs.push_back(get_barycenter(part));
+    }
+
+    double sum = 0.0;
+    for (size_t i = 0; i < k; ++i) {
+        for (size_t j = i + 1; j < k; ++j) {
+            sum += euclidean_distance(bcs[i], bcs[j]);
+        }
+    }
+    return sum / (k * (k - 1) / 2.0);
+}
+
+BarycentricSubdivision::SimplexInfo BarycentricSubdivision::get_or_create_simplex(
+    const std::vector<std::vector<int>>& partitioning
+) {
+    std::vector<int> key;
+    for (const auto& part : partitioning) {
+        key.insert(key.end(), part.begin(), part.end());
+    }
+    std::sort(key.begin(), key.end());
+
+    auto it = simplex_map_.lower_bound(key);
+    if (it != simplex_map_.end() && it->first == key) {
+        return SimplexInfo{it->second.first, it->second.second, false};
+    }
+
+    int32_t id = next_simplex_id_++;
+    double value = compute_filtration_value(partitioning);
+    simplex_map_.emplace_hint(it, std::move(key), std::make_pair(id, value));
+    return SimplexInfo{id, value, true};
+}
+
+void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
+    auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
+    if (partition.size() < 2) return;
+
+    auto combinations = enumerate_multicolored_combinations(partition);
+    const size_t n = combinations.size();
+
+    std::vector<std::pair<int32_t, double>> vertices(n);
+    std::vector<char> created(n);
+    for (size_t i = 0; i < n; ++i) {
+        auto info = get_or_create_simplex(combinations[i].parts);
+        vertices[i] = {info.id, info.value};
+        created[i] = info.newly_created;
+    }
+
+    auto new_barycenters = hierarchical_barycenters(combinations, points_);
     for (size_t i = 0; i < n; ++i) {
         if (created[i]) {
             barycenters_.push_back(new_barycenters[i]);
         }
     }
 
-    // --- 4. Add edges (subset inclusion on flat sets) ---
+    // Edges: one per strict flat-set inclusion between combinations.
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
             if (i != j && is_subset(combinations[i].flat, combinations[j].flat)) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                double val = star_value(vertices[i].second, vertices[j].second);
-                filtration_set_.insert({edge, val});
+                filtration_set_.insert({edge, star_value(vertices[i].second, vertices[j].second)});
             }
         }
     }
 
-    // --- 5. Add maximal chains as higher simplices ---
-    // Group combinations by level (flat set size)
-    std::map<size_t, std::vector<size_t>> levels;
-    for (size_t i = 0; i < n; ++i) {
-        levels[combinations[i].flat.size()].push_back(i);
+    for (const auto& chain : enumerate_maximal_chains(combinations)) {
+        Simplex simplex;
+        std::vector<double> vals;
+        for (size_t idx : chain) {
+            simplex.push_back(vertices[idx].first);
+            vals.push_back(vertices[idx].second);
+        }
+        std::sort(simplex.begin(), simplex.end());
+        filtration_set_.insert({simplex, star_value(vals)});
     }
 
-    std::vector<size_t> level_keys;
-    for (const auto& [lv, _] : levels) {
-        level_keys.push_back(lv);
-    }
-
-    if (level_keys.size() >= 3) {
-        // Build chains: one element per level, each ⊂ next via flat inclusion
-        std::vector<std::vector<size_t>> chains;
-        for (size_t idx : levels[level_keys[0]]) {
-            chains.push_back({idx});
-        }
-
-        for (size_t lv = 1; lv < level_keys.size(); ++lv) {
-            std::vector<std::vector<size_t>> new_chains;
-            for (const auto& chain : chains) {
-                size_t last = chain.back();
-                for (size_t idx : levels[level_keys[lv]]) {
-                    if (is_subset(combinations[last].flat, combinations[idx].flat)) {
-                        auto extended = chain;
-                        extended.push_back(idx);
-                        new_chains.push_back(std::move(extended));
-                    }
-                }
-            }
-            chains = std::move(new_chains);
-        }
-
-        // Each complete chain becomes a simplex (triangle for 3 levels, etc.)
-        for (const auto& chain : chains) {
-            Simplex simplex;
-            std::vector<double> vals;
-            for (size_t idx : chain) {
-                simplex.push_back(vertices[idx].first);
-                vals.push_back(vertices[idx].second);
-            }
-            std::sort(simplex.begin(), simplex.end());
-            filtration_set_.insert({simplex, star_value(vals)});
-        }
-    }
-
-    // --- 6. Add vertices to filtration ---
     for (const auto& [id, val] : vertices) {
         filtration_set_.insert({{id}, val});
     }
@@ -271,14 +267,12 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
 }
 
 void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
-    std::vector<int> vertices(tet.begin(), tet.end());
-    process_simplex(vertices);
+    process_simplex({tet.begin(), tet.end()});
 }
 
 Filtration BarycentricSubdivision::get_filtration() const {
     Filtration result(filtration_set_.begin(), filtration_set_.end());
 
-    // Sort by simplex size, then by filtration value
     std::sort(result.begin(), result.end(),
         [](const auto& a, const auto& b) {
             if (std::get<0>(a).size() != std::get<0>(b).size()) {
@@ -299,41 +293,10 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_bar
     bool alpha,
     bool lower_star
 ) {
-    if (points.size() != color_labels.size()) {
-        throw std::invalid_argument("Each point must have a corresponding color_label");
-    }
+    detail::validate_inputs(points, color_labels, radii, weighted);
 
-    if (weighted && radii.size() != points.size()) {
-        throw std::invalid_argument("Each point must have an assigned radius for weighted complexes");
-    }
-
-    InterfaceGenerator generator;
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    MulticoloredSimplices mc_simplices;
-
-    if (weighted && alpha) {
-        mc_simplices = generator.get_multicolored_simplices_weighted_alpha(
-            points, color_labels, radii);
-
-        for (const auto& tet : mc_simplices.generating_tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-        for (const auto& tri : mc_simplices.generating_free_triangles) {
-            subdivision.process_simplex(tri);
-        }
-        for (const auto& edge : mc_simplices.generating_free_edges) {
-            subdivision.process_simplex(edge);
-        }
-    } else {
-        auto tetrahedra = generator.get_multicolored_tetrahedra(
-            points, color_labels, radii, weighted, alpha);
-
-        mc_simplices.generating_tetrahedra = tetrahedra;
-
-        for (const auto& tet : tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-    }
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, weighted, alpha);
 
     return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};

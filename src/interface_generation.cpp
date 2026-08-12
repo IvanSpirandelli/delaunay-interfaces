@@ -1,5 +1,4 @@
 #include "delaunay_interfaces/interface_generation.hpp"
-#include "delaunay_interfaces/simplified_subdivision.hpp"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Regular_triangulation_3.h>
@@ -285,60 +284,6 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const ColorLabels& color_labels
 ) const {
     return compute_interface_surface(points, color_labels, {}, false, false, false);
-}
-
-SimplifiedSurface get_simplified_surface(
-    const Points& points,
-    const ColorLabels& color_labels,
-    const Radii& radii,
-    bool weighted,
-    bool alpha
-) {
-    if (points.size() != color_labels.size()) {
-        throw std::invalid_argument("Each point must have a corresponding color_label");
-    }
-    if (weighted && radii.size() != points.size()) {
-        throw std::invalid_argument("Each point must have an assigned radius for weighted complexes");
-    }
-
-    InterfaceGenerator generator;
-    SimplifiedSubdivision subdivision(points, color_labels);
-    MulticoloredSimplices mc_simplices;
-
-    if (weighted && alpha) {
-        mc_simplices = generator.get_multicolored_simplices_weighted_alpha(
-            points, color_labels, radii);
-
-        for (const auto& tet : mc_simplices.generating_tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-        for (const auto& tri : mc_simplices.generating_free_triangles) {
-            subdivision.process_simplex(tri);
-        }
-        for (const auto& edge : mc_simplices.generating_free_edges) {
-            subdivision.process_simplex(edge);
-        }
-    } else {
-        auto tetrahedra = generator.get_multicolored_tetrahedra(
-            points, color_labels, radii, weighted, alpha);
-
-        for (const auto& tet : tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-        mc_simplices.generating_tetrahedra = std::move(tetrahedra);
-    }
-
-    return SimplifiedSurface{
-        subdivision.get_vertices(),
-        subdivision.get_triangles(),
-        subdivision.get_quads(),
-        subdivision.get_edges(),
-        subdivision.get_vertex_atom_indices(),
-        subdivision.get_vertex_filtration(),
-        std::move(mc_simplices),
-        weighted,
-        alpha
-    };
 }
 
 } // namespace delaunay_interfaces

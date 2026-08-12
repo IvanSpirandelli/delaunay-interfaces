@@ -28,13 +28,13 @@ Setting all radii to `r` simulates an unweighted alpha complex at threshold `r`:
 
 Colors: `{1, 1, 1, 2}` — v0, v1, v2 share one color, v3 has a different color.
 
-Multicolored simplices are those containing at least one vertex from each color group. The monocolored triangle `{v0, v1, v2}` and its 3 edges are **not** multicolored.
+Multicolored simplices are those containing at least one vertex from each color group. The triangle `{v0, v1, v2}` and its 3 edges are **not** multicolored.
 
 ### r = 0 — Empty
 
-Nothing in the alpha complex.
+No multicolored simplices in the alpha complex.
 
-→ **0 barycenters, 0 simplices**
+→ **0 simplices** in the interface complex.
 
 ### r = 0.51 — Edges Only
 
@@ -42,7 +42,7 @@ Nothing in the alpha complex.
 
 Each free bicolored edge produces **1 barycenter** at the midpoint.
 
-→ **3 barycenters, 3v = 3 simplices**
+→ **3v = 3 simplices** in the interface complex.
 
 ### r = 0.58 — Edges + Triangles
 
@@ -68,7 +68,7 @@ Filtration edges from subset inclusion (level-2 ⊂ level-3) within each triangl
 
 No filtration triangles: only 2 levels per free triangle.
 
-→ **6 barycenters, 6v + 6e = 12 simplices**
+→ **6v + 6e = 12 simplices** in the interface complex.
 
 ### r = 0.62 — Full Tetrahedron
 
@@ -88,7 +88,7 @@ Maximal chains (level 2 → 3 → 4): 3 level-2 × 2 paths each = **6 triangles*
 
 Equivalent to the Delaunay (no alpha filtering) result.
 
-→ **7 barycenters, 7v + 12e + 6t = 25 simplices**
+→ **7v + 12e + 6t = 25 simplices** in the interface complex.
 
 ---
 
@@ -104,7 +104,7 @@ Only the edge `{v0, v1}` is monocolored. All other simplices are multicolored.
 
 Each free bicolored edge produces **1 barycenter** at the midpoint.
 
-→ **5 barycenters, 5v = 5 simplices**
+→ **5v = 5 simplices** in the interface complex.
 
 ### r = 0.58 — Edges + Triangles
 
@@ -128,7 +128,7 @@ Filtration edges from subset inclusion (level-2 ⊂ level-3):
 
 No filtration triangles: only 2 levels per free triangle.
 
-→ **9 barycenters, 9v + 10e = 19 simplices**
+→ **9v + 10e = 19 simplices** in the interface complex.
 
 ### r = 0.62 — Full Tetrahedron
 
@@ -148,7 +148,7 @@ Maximal chains (level 2 → 3 → 4): 5 level-2 × 2 paths each = **10 triangles
 
 Equivalent to the Delaunay (no alpha filtering) result.
 
-→ **10 barycenters, 10v + 19e + 10t = 39 simplices**
+→ **10v + 19e + 10t = 39 simplices** in the interface complex.
 
 ---
 
@@ -164,7 +164,7 @@ Multicolored simplices must contain vertices of both colors. The monocolored edg
 
 Each free bicolored edge produces **1 barycenter** at the midpoint.
 
-→ **4 barycenters, 4v = 4 simplices**
+→ **4v = 4 simplices** in the interface complex.
 
 ### r = 0.58 — Edges + Triangles
 
@@ -187,7 +187,7 @@ Filtration edges from subset inclusion (level-2 ⊂ level-3) within each triangl
 
 No filtration triangles: only 2 levels per free triangle.
 
-→ **8 barycenters, 8v + 8e = 16 simplices**
+→ **8v + 8e = 16 simplices** in the interface complex.
 
 ### r = 0.62 — Full Tetrahedron
 
@@ -207,7 +207,7 @@ Maximal chains (level 2 → 3 → 4): 4 level-2 × 2 paths each = **8 triangles*
 
 Equivalent to the Delaunay (no alpha filtering) result.
 
-→ **9 barycenters, 9v + 16e + 8t = 33 simplices**
+→ **9v + 16e + 8t = 33 simplices** in the interface complex.
 
 ---
 
@@ -219,7 +219,7 @@ Each vertex gets a distinct color, so **every simplex is multicolored**. The bar
 
 Nothing in the alpha complex.
 
-→ **0 barycenters, 0 simplices**
+→ **0 simplices** in the interface complex.
 
 ### r = 0.51 — Edges Only
 
@@ -227,7 +227,7 @@ Nothing in the alpha complex.
 
 Each free bicolored edge `{vi, vj}` produces **1 barycenter** at the midpoint. The 6 edges are independent — no subset inclusion relationships between them.
 
-→ **6 barycenters, 6v = 6 simplices**
+→ **6v = 6 simplices** in the interface complex.
 
 ### r = 0.58 — Edges + Triangles
 
@@ -246,7 +246,7 @@ Filtration edges come from subset inclusion (level-2 ⊂ level-3) within each tr
 
 No filtration triangles: only 2 levels per free triangle, so maximal chains have length 2 (= edges, not triangles).
 
-→ **10 barycenters, 10v + 12e = 22 simplices**
+→ **10v + 12e = 22 simplices** in the interface complex.
 
 ### r = 0.62 — Full Tetrahedron
 
@@ -266,7 +266,7 @@ Maximal chains (level 2 → 3 → 4): 4 × 3 = **12 triangles**
 
 Equivalent to the Delaunay (no alpha filtering) result.
 
-→ **11 barycenters, 11v + 22e + 12t = 45 simplices**
+→ **11v + 22e + 12t = 45 simplices** in the interface complex.
 
 ---
 

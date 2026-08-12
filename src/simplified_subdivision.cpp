@@ -1,5 +1,6 @@
 #include "delaunay_interfaces/simplified_subdivision.hpp"
 #include "delaunay_interfaces/chromatic_partitioning.hpp"
+#include "subdivision_driver.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -13,8 +14,8 @@ SimplifiedSubdivision::SimplifiedSubdivision(
 int32_t SimplifiedSubdivision::get_or_create_vertex(int atom_a, int atom_b) {
     std::array<int, 2> key = {std::min(atom_a, atom_b), std::max(atom_a, atom_b)};
 
-    auto it = vertex_map_.find(key);
-    if (it != vertex_map_.end()) {
+    auto it = vertex_map_.lower_bound(key);
+    if (it != vertex_map_.end() && it->first == key) {
         return it->second.first;
     }
 
@@ -23,7 +24,7 @@ int32_t SimplifiedSubdivision::get_or_create_vertex(int atom_a, int atom_b) {
     double dist = (points_[atom_a] - points_[atom_b]).norm();
 
     vertices_.push_back(midpoint);
-    vertex_map_[key] = {id, dist};
+    vertex_map_.emplace_hint(it, key, std::make_pair(id, dist));
     return id;
 }
 
@@ -35,60 +36,54 @@ void SimplifiedSubdivision::process_simplex(const std::vector<int>& simplex_vert
             std::to_string(partition.size()));
     }
 
-    const auto& part_a = partition[0]; // larger or equal group
+    // get_chromatic_partitioning sorts parts by descending size, so part_a is
+    // the larger (or equal) group. The quad winding below relies on this.
+    const auto& part_a = partition[0];
     const auto& part_b = partition[1];
 
-    // Enumerate all cross-color pairs → vertices
     std::vector<int32_t> cross_vertices;
     cross_vertices.reserve(part_a.size() * part_b.size());
-
     for (int a : part_a) {
         for (int b : part_b) {
             cross_vertices.push_back(get_or_create_vertex(a, b));
         }
     }
 
-    size_t n = cross_vertices.size();
-
-    if (n == 1) {
-        // Free bicolored edge → single vertex (already registered)
+    switch (cross_vertices.size()) {
+    case 1:
+        // Free bicolored edge: single vertex, already registered above.
         return;
-    }
-
-    if (n == 2) {
-        // Free bicolored triangle (2-1 partition) → single edge
+    case 2: {
+        // Free bicolored triangle (2-1 partition): single edge.
         std::array<int32_t, 2> edge = {cross_vertices[0], cross_vertices[1]};
         if (edge[0] > edge[1]) std::swap(edge[0], edge[1]);
         edges_.push_back(edge);
         return;
     }
-
-    if (n == 3) {
-        // 3-1 tetrahedron → single triangle
+    case 3: {
+        // 3-1 tetrahedron: single triangle.
         Triangle tri = {cross_vertices[0], cross_vertices[1], cross_vertices[2]};
         std::sort(tri.begin(), tri.end());
         triangles_.push_back(tri);
         return;
     }
-
-    if (n == 4) {
-        // 2-2 tetrahedron → quad
-        // cross_vertices layout (from nested loop): [a0b0, a0b1, a1b0, a1b1]
-        // Cyclic order: a0b0 - a0b1 - a1b1 - a1b0
-        //   (a0b0-a0b1 share a0, a0b1-a1b1 share b1, a1b1-a1b0 share a1, a1b0-a0b0 share b0)
+    case 4: {
+        // 2-2 tetrahedron: quad. cross_vertices layout from the nested loop is
+        // [a0b0, a0b1, a1b0, a1b1]; cyclic order a0b0 - a0b1 - a1b1 - a1b0
+        // (consecutive quad vertices share an atom).
         Quad quad = {cross_vertices[0], cross_vertices[1],
                      cross_vertices[3], cross_vertices[2]};
         quads_.push_back(quad);
         return;
     }
-
-    // Should not reach here for a tetrahedron with 2 colors
-    throw std::logic_error("Unexpected number of cross-color pairs: " + std::to_string(n));
+    default:
+        throw std::logic_error("Unexpected number of cross-color pairs: " +
+                               std::to_string(cross_vertices.size()));
+    }
 }
 
 void SimplifiedSubdivision::process_tetrahedron(const Tetrahedron& tet) {
-    std::vector<int> vertices(tet.begin(), tet.end());
-    process_simplex(vertices);
+    process_simplex({tet.begin(), tet.end()});
 }
 
 std::vector<std::vector<int>> SimplifiedSubdivision::get_vertex_atom_indices() const {
@@ -105,6 +100,31 @@ std::vector<double> SimplifiedSubdivision::get_vertex_filtration() const {
         result[id_val.first] = id_val.second;
     }
     return result;
+}
+
+SimplifiedSurface get_simplified_surface(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii,
+    bool weighted,
+    bool alpha
+) {
+    detail::validate_inputs(points, color_labels, radii, weighted);
+
+    SimplifiedSubdivision subdivision(points, color_labels);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, weighted, alpha);
+
+    return SimplifiedSurface{
+        subdivision.get_vertices(),
+        subdivision.get_triangles(),
+        subdivision.get_quads(),
+        subdivision.get_edges(),
+        subdivision.get_vertex_atom_indices(),
+        subdivision.get_vertex_filtration(),
+        std::move(mc_simplices),
+        weighted,
+        alpha
+    };
 }
 
 } // namespace delaunay_interfaces
