@@ -105,7 +105,7 @@ jupyter notebook examples/python_examples.ipynb
 3. Run all cells. The notebook demonstrates:
    - Random point cloud interfaces
    - Single tetrahedron subdivisions (2-2, 2-1-1, 3-1, 1-1-1-1 partitions)
-   - Protein dimer interface (4BMG)
+   - Protein dimer interface (4bmg)
 
 ### Julia Notebook
 
