@@ -16,10 +16,11 @@ using Radii = std::vector<double>;
 // Simplex naming convention: simplices of the input complex (Delaunay /
 // alpha) index input atoms as int and are named Tetrahedron / FreeTriangle /
 // FreeEdge; simplices of the generated interface index the surface's own
-// vertices as int32_t and are prefixed Surface. "Surface" is the project's
-// working term for the generated interface: a simplicial complex of
-// dimension <= 2 that may contain isolated vertices, dangling edges, and
-// non-manifold seams where three or more color regions meet.
+// vertices as int32_t and are prefixed Surface. The interface within a
+// generating d-simplex is (d-1)-dimensional, so it is a surface wherever the
+// input complex is locally solid (sheets, joined along seams where >= 3
+// colors meet) and degenerates with the complex where it thins out: free
+// triangles yield curve pieces, free edges isolated vertices.
 
 // Input complex.
 using Tetrahedron = std::array<int, 4>;
