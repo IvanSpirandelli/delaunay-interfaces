@@ -23,7 +23,7 @@ int32_t SimplifiedSubdivision::get_or_create_vertex(int atom_a, int atom_b) {
     Point3D midpoint = (points_[atom_a] + points_[atom_b]) / 2.0;
     double dist = (points_[atom_a] - points_[atom_b]).norm();
 
-    vertices_.push_back(midpoint);
+    midpoints_.push_back(midpoint);
     vertex_map_.emplace_hint(it, key, std::make_pair(id, dist));
     return id;
 }
@@ -115,7 +115,7 @@ SimplifiedSurface compute_simplified_surface(
     auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, weighted, alpha);
 
     return SimplifiedSurface{
-        subdivision.get_vertices(),
+        subdivision.get_midpoints(),
         subdivision.get_triangles(),
         subdivision.get_quads(),
         subdivision.get_edges(),

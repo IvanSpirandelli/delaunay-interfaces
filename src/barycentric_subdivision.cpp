@@ -8,18 +8,18 @@ namespace delaunay_interfaces {
 
 namespace {
 
-// One multicolored sub-simplex of the processed simplex: a choice of >= 2
-// parts and a non-empty subset of each chosen part.
-struct Combination {
+// One multicolored face of the processed simplex: a choice of >= 2 parts
+// and a non-empty subset of each chosen part.
+struct MulticoloredFace {
     std::vector<std::vector<int>> parts; // the sub-partition, one entry per chosen part
-    std::vector<int> flat;               // sorted union of all chosen vertices
+    std::vector<int> atoms;              // sorted union of the chosen atom indices
 };
 
 // Enumerates every subset I of the parts with |I| >= 2, crossed with every
 // tuple of non-empty subsets of the parts in I.
-std::vector<Combination> enumerate_multicolored_combinations(const Partition& partition) {
+std::vector<MulticoloredFace> enumerate_multicolored_faces(const Partition& partition) {
     const int k = static_cast<int>(partition.size());
-    std::vector<Combination> combinations;
+    std::vector<MulticoloredFace> faces;
 
     for (int mask = 0; mask < (1 << k); ++mask) {
         if (std::bitset<32>(mask).count() < 2) continue;
@@ -49,17 +49,17 @@ std::vector<Combination> enumerate_multicolored_combinations(const Partition& pa
         }
 
         for (auto& tuple : partial) {
-            Combination comb;
-            comb.parts = std::move(tuple);
-            for (const auto& s : comb.parts) {
-                comb.flat.insert(comb.flat.end(), s.begin(), s.end());
+            MulticoloredFace face;
+            face.parts = std::move(tuple);
+            for (const auto& s : face.parts) {
+                face.atoms.insert(face.atoms.end(), s.begin(), s.end());
             }
-            std::sort(comb.flat.begin(), comb.flat.end());
-            combinations.push_back(std::move(comb));
+            std::sort(face.atoms.begin(), face.atoms.end());
+            faces.push_back(std::move(face));
         }
     }
 
-    return combinations;
+    return faces;
 }
 
 bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
@@ -69,31 +69,31 @@ bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
 // Barycenter positions per combination: the centroid of the barycenters of
 // the parts of the combination's sub-partition. For 2-color partitions this
 // equals the flat average of the original points; for 3+ colors it differs.
-std::vector<Point3D> combination_barycenters(
-    const std::vector<Combination>& combinations,
+std::vector<Point3D> face_barycenters(
+    const std::vector<MulticoloredFace>& faces,
     const Points& points
 ) {
     std::vector<Point3D> barycenters;
-    barycenters.reserve(combinations.size());
-    for (const auto& comb : combinations) {
+    barycenters.reserve(faces.size());
+    for (const auto& face : faces) {
         Point3D sum = Point3D::Zero();
-        for (const auto& part : comb.parts) {
+        for (const auto& part : face.parts) {
             sum += compute_barycenter(points, part);
         }
-        barycenters.push_back(sum / static_cast<double>(comb.parts.size()));
+        barycenters.push_back(sum / static_cast<double>(face.parts.size()));
     }
     return barycenters;
 }
 
-// Maximal chains of combinations under flat-set inclusion, one element per
+// Maximal chains of faces under flat-set inclusion, one element per
 // level. Only defined when there are >= 3 distinct levels; each chain becomes
 // a higher-dimensional simplex of the subdivision.
 std::vector<std::vector<size_t>> enumerate_maximal_chains(
-    const std::vector<Combination>& combinations
+    const std::vector<MulticoloredFace>& faces
 ) {
     std::map<size_t, std::vector<size_t>> levels;
-    for (size_t i = 0; i < combinations.size(); ++i) {
-        levels[combinations[i].flat.size()].push_back(i);
+    for (size_t i = 0; i < faces.size(); ++i) {
+        levels[faces[i].atoms.size()].push_back(i);
     }
     if (levels.size() < 3) return {};
 
@@ -108,7 +108,7 @@ std::vector<std::vector<size_t>> enumerate_maximal_chains(
         for (const auto& chain : chains) {
             size_t last = chain.back();
             for (size_t idx : level_it->second) {
-                if (is_subset(combinations[last].flat, combinations[idx].flat)) {
+                if (is_subset(faces[last].atoms, faces[idx].atoms)) {
                     auto extended = chain;
                     extended.push_back(idx);
                     new_chains.push_back(std::move(extended));
@@ -146,13 +146,13 @@ Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices)
     return compute_barycenter(points_, vertices);
 }
 
-double BarycentricSubdivision::compute_filtration_value(const Partition& partitioning) const {
-    const size_t k = partitioning.size();
+double BarycentricSubdivision::compute_filtration_value(const Partition& partition) const {
+    const size_t k = partition.size();
     if (k < 2) return 0.0;
 
     std::vector<Point3D> bcs;
     bcs.reserve(k);
-    for (const auto& part : partitioning) {
+    for (const auto& part : partition) {
         bcs.push_back(get_barycenter(part));
     }
 
@@ -165,52 +165,52 @@ double BarycentricSubdivision::compute_filtration_value(const Partition& partiti
     return sum / (k * (k - 1) / 2.0);
 }
 
-BarycentricSubdivision::SimplexInfo BarycentricSubdivision::get_or_create_simplex(
-    const std::vector<std::vector<int>>& partitioning
+BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
+    const Partition& partition
 ) {
     std::vector<int> key;
-    for (const auto& part : partitioning) {
+    for (const auto& part : partition) {
         key.insert(key.end(), part.begin(), part.end());
     }
     std::sort(key.begin(), key.end());
 
-    auto it = simplex_map_.lower_bound(key);
-    if (it != simplex_map_.end() && it->first == key) {
-        return SimplexInfo{it->second.first, it->second.second, false};
+    auto it = vertex_map_.lower_bound(key);
+    if (it != vertex_map_.end() && it->first == key) {
+        return VertexInfo{it->second.first, it->second.second, false};
     }
 
-    int32_t id = next_simplex_id_++;
-    double value = compute_filtration_value(partitioning);
-    simplex_map_.emplace_hint(it, std::move(key), std::make_pair(id, value));
-    return SimplexInfo{id, value, true};
+    int32_t id = next_vertex_id_++;
+    double value = compute_filtration_value(partition);
+    vertex_map_.emplace_hint(it, std::move(key), std::make_pair(id, value));
+    return VertexInfo{id, value, true};
 }
 
 void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
     auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
     if (partition.size() < 2) return;
 
-    auto combinations = enumerate_multicolored_combinations(partition);
-    const size_t n = combinations.size();
+    auto faces = enumerate_multicolored_faces(partition);
+    const size_t n = faces.size();
 
     std::vector<std::pair<int32_t, double>> vertices(n);
     std::vector<char> created(n);
     for (size_t i = 0; i < n; ++i) {
-        auto info = get_or_create_simplex(combinations[i].parts);
+        auto info = get_or_create_vertex(faces[i].parts);
         vertices[i] = {info.id, info.value};
         created[i] = info.newly_created;
     }
 
-    auto new_barycenters = combination_barycenters(combinations, points_);
+    auto new_barycenters = face_barycenters(faces, points_);
     for (size_t i = 0; i < n; ++i) {
         if (created[i]) {
             barycenters_.push_back(new_barycenters[i]);
         }
     }
 
-    // Edges: one per strict flat-set inclusion between combinations.
+    // Edges: one per strict flat-set inclusion between faces.
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
-            if (i != j && is_subset(combinations[i].flat, combinations[j].flat)) {
+            if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
                 Simplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
                 filtration_set_.insert({edge, star_value(vertices[i].second, vertices[j].second)});
@@ -218,7 +218,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         }
     }
 
-    for (const auto& chain : enumerate_maximal_chains(combinations)) {
+    for (const auto& chain : enumerate_maximal_chains(faces)) {
         Simplex simplex;
         std::vector<double> vals;
         for (size_t idx : chain) {
@@ -235,8 +235,8 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
 }
 
 std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() const {
-    std::vector<std::vector<int>> result(next_simplex_id_);
-    for (const auto& [key, id_val] : simplex_map_) {
+    std::vector<std::vector<int>> result(next_vertex_id_);
+    for (const auto& [key, id_val] : vertex_map_) {
         result[id_val.first] = key;
     }
     return result;

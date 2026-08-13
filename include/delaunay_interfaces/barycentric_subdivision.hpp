@@ -24,15 +24,15 @@ public:
     [[nodiscard]] std::vector<std::vector<int>> get_vertex_atom_indices() const;
 
 private:
-    struct SimplexInfo {
+    struct VertexInfo {
         int32_t id;
         double value;
         bool newly_created;
     };
 
     Point3D get_barycenter(const std::vector<int>& vertices) const;
-    double compute_filtration_value(const Partition& partitioning) const;
-    SimplexInfo get_or_create_simplex(const std::vector<std::vector<int>>& partitioning);
+    double compute_filtration_value(const Partition& partition) const;
+    VertexInfo get_or_create_vertex(const Partition& partition);
 
     // Upper star (default) takes the minimum over values, lower star the maximum.
     double star_value(double a, double b) const;
@@ -43,9 +43,9 @@ private:
     bool lower_star_;
     Points barycenters_;
 
-    // Map from sorted vertex sets to (simplex_id, filtration_value)
-    std::map<std::vector<int>, std::pair<int32_t, double>> simplex_map_;
-    int32_t next_simplex_id_ = 0;
+    // Map from sorted atom sets to (vertex_id, filtration_value)
+    std::map<std::vector<int>, std::pair<int32_t, double>> vertex_map_;
+    int32_t next_vertex_id_ = 0;
 
     std::set<SimplexWithFiltration> filtration_set_;
 };

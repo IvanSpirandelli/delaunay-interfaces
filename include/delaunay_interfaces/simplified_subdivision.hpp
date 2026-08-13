@@ -16,10 +16,10 @@ public:
     void process_tetrahedron(const Tetrahedron& tet);
     void process_simplex(const std::vector<int>& simplex_vertices);
 
-    [[nodiscard]] const Points& get_vertices() const { return vertices_; }
+    [[nodiscard]] const Points& get_midpoints() const { return midpoints_; }
     [[nodiscard]] const std::vector<SurfaceTriangle>& get_triangles() const { return triangles_; }
     [[nodiscard]] const std::vector<SurfaceQuad>& get_quads() const { return quads_; }
-    [[nodiscard]] const std::vector<std::array<int32_t, 2>>& get_edges() const { return edges_; }
+    [[nodiscard]] const std::vector<SurfaceEdge>& get_edges() const { return edges_; }
     [[nodiscard]] std::vector<std::vector<int>> get_vertex_atom_indices() const;
     [[nodiscard]] std::vector<double> get_vertex_filtration() const;
 
@@ -29,10 +29,10 @@ private:
     const Points& points_;
     const ColorLabels& color_labels_;
 
-    Points vertices_;
+    Points midpoints_;
     std::vector<SurfaceTriangle> triangles_;
     std::vector<SurfaceQuad> quads_;
-    std::vector<std::array<int32_t, 2>> edges_;
+    std::vector<SurfaceEdge> edges_;
 
     // Map from sorted atom pair → (vertex_id, filtration_value)
     std::map<std::array<int, 2>, std::pair<int32_t, double>> vertex_map_;

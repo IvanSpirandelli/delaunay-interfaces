@@ -43,7 +43,7 @@ using VertexAtomIndices = std::vector<std::vector<int>>;
 struct InterfaceSurface {
     Points vertices;
     Filtration filtration;
-    MulticoloredSimplices simplices;
+    MulticoloredSimplices generating_simplices;
     VertexAtomIndices vertex_atom_indices;
     bool weighted;
     bool alpha;
@@ -58,7 +58,7 @@ struct SimplifiedSurface {
     std::vector<SurfaceEdge> edges;          // Edges (one per free 2-1 input triangle)
     VertexAtomIndices vertex_atom_indices;    // Each entry has exactly 2 atom indices
     std::vector<double> vertex_filtration;   // Filtration value per vertex
-    MulticoloredSimplices simplices;         // Generating structures
+    MulticoloredSimplices generating_simplices; // Generating input simplices
     bool weighted;
     bool alpha;
 };

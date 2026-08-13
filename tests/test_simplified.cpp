@@ -24,7 +24,7 @@ void test_simplified_22_tetrahedron() {
     sub.process_tetrahedron({0, 1, 2, 3});
 
     // 2-2: 4 cross-color edges → 4 vertices, 1 quad
-    assert(sub.get_vertices().size() == 4);
+    assert(sub.get_midpoints().size() == 4);
     assert(sub.get_quads().size() == 1);
     assert(sub.get_triangles().size() == 0);
     assert(sub.get_edges().size() == 0);
@@ -60,7 +60,7 @@ void test_simplified_31_tetrahedron() {
     sub.process_tetrahedron({0, 1, 2, 3});
 
     // 3-1: 3 cross-color edges → 3 vertices, 1 triangle
-    assert(sub.get_vertices().size() == 3);
+    assert(sub.get_midpoints().size() == 3);
     assert(sub.get_triangles().size() == 1);
     assert(sub.get_quads().size() == 0);
     assert(sub.get_edges().size() == 0);
@@ -88,7 +88,7 @@ void test_simplified_free_triangle() {
     sub.process_simplex({0, 1, 2});
 
     // 2-1 triangle: 2 cross-color edges → 2 vertices, 1 edge
-    assert(sub.get_vertices().size() == 2);
+    assert(sub.get_midpoints().size() == 2);
     assert(sub.get_triangles().size() == 0);
     assert(sub.get_quads().size() == 0);
     assert(sub.get_edges().size() == 1);
@@ -109,7 +109,7 @@ void test_simplified_free_edge() {
     sub.process_simplex({0, 1});
 
     // 1-1 edge: 1 cross-color pair → 1 vertex, no faces
-    assert(sub.get_vertices().size() == 1);
+    assert(sub.get_midpoints().size() == 1);
     assert(sub.get_triangles().size() == 0);
     assert(sub.get_quads().size() == 0);
     assert(sub.get_edges().size() == 0);
@@ -133,13 +133,13 @@ void test_simplified_vertex_dedup() {
     SimplifiedSubdivision sub(points, colors);
     // Tet 1: {0,1,2,3} — 2-2 → 4 vertices, 1 quad
     sub.process_tetrahedron({0, 1, 2, 3});
-    assert(sub.get_vertices().size() == 4);
+    assert(sub.get_midpoints().size() == 4);
 
     // Tet 2: {0,1,2,4} — 2-2, shares face {0,1,2} with tet 1
     // Cross-color pairs: (0,2), (0,4), (1,2), (1,4)
     // (0,2) and (1,2) already exist from tet 1 → only 2 new vertices
     sub.process_tetrahedron({0, 1, 2, 4});
-    assert(sub.get_vertices().size() == 6);  // 4 + 2 new
+    assert(sub.get_midpoints().size() == 6);  // 4 + 2 new
 
     // Total quads: 1 from each tet = 2
     assert(sub.get_quads().size() == 2);
@@ -188,7 +188,7 @@ void test_simplified_vs_barycentric_vertices() {
 
     // Verify that the actual 3D positions match
     auto bary_pts = bary.get_barycenters();
-    auto simp_pts = simp.get_vertices();
+    auto simp_pts = simp.get_midpoints();
 
     for (size_t si = 0; si < simp_vai.size(); ++si) {
         for (size_t bi = 0; bi < bary_vai.size(); ++bi) {
@@ -246,7 +246,7 @@ void test_compute_simplified_surface_delaunay() {
     assert(surface.triangles.size() == 2);
     assert(surface.quads.size() == 1);
     assert(surface.edges.size() == 0);
-    assert(surface.simplices.generating_tetrahedra.size() == 3);
+    assert(surface.generating_simplices.generating_tetrahedra.size() == 3);
     assert(surface.weighted == false);
     assert(surface.alpha == false);
 

@@ -44,7 +44,7 @@ static bool is_multicolored(const VertexIndices& indices, const ColorLabels& col
 // Multicolored finite cells of any CGAL triangulation carrying the input
 // point index as vertex info.
 template <class Triangulation>
-static Tetrahedra collect_multicolored_cells(
+static Tetrahedra collect_multicolored_tetrahedra(
     const Triangulation& t,
     const ColorLabels& color_labels
 ) {
@@ -110,7 +110,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delauna
     }
 
     MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_cells(dt, color_labels);
+    result.generating_tetrahedra = collect_multicolored_tetrahedra(dt, color_labels);
     return result;
 }
 
@@ -131,7 +131,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     }
 
     MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_cells(rt, color_labels);
+    result.generating_tetrahedra = collect_multicolored_tetrahedra(rt, color_labels);
     return result;
 }
 

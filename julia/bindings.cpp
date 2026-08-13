@@ -78,32 +78,32 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             return std::get<1>(s.filtration[i]);
         })
         .method("num_generating_tetrahedra", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.simplices.generating_tetrahedra.size());
+            return static_cast<int>(s.generating_simplices.generating_tetrahedra.size());
         })
         .method("get_all_generating_tetrahedra", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            result.reserve(s.simplices.generating_tetrahedra.size() * 4);
-            for (const auto& tet : s.simplices.generating_tetrahedra) {
+            result.reserve(s.generating_simplices.generating_tetrahedra.size() * 4);
+            for (const auto& tet : s.generating_simplices.generating_tetrahedra) {
                 for (int v : tet) result.push_back(v);
             }
             return result;
         })
         .method("num_generating_free_triangles", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.simplices.generating_free_triangles.size());
+            return static_cast<int>(s.generating_simplices.generating_free_triangles.size());
         })
         .method("get_all_generating_free_triangles", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            for (const auto& tri : s.simplices.generating_free_triangles) {
+            for (const auto& tri : s.generating_simplices.generating_free_triangles) {
                 for (int v : tri) result.push_back(v);
             }
             return result;
         })
         .method("num_generating_free_edges", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.simplices.generating_free_edges.size());
+            return static_cast<int>(s.generating_simplices.generating_free_edges.size());
         })
         .method("get_all_generating_free_edges", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            for (const auto& edge : s.simplices.generating_free_edges) {
+            for (const auto& edge : s.generating_simplices.generating_free_edges) {
                 for (int v : edge) result.push_back(v);
             }
             return result;
