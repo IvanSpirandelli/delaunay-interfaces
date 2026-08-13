@@ -207,7 +207,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         }
     }
 
-    // Edges: one per strict flat-set inclusion between faces.
+    // Edges: one per strict inclusion between the faces' atom sets.
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
             if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
