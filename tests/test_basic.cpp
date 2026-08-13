@@ -467,10 +467,10 @@ void test_free_simplices_alpha() {
             sub.process_tetrahedron(tet);
         }
         for (const auto& tri : simplices.generating_free_triangles) {
-            sub.process_simplex(tri);
+            sub.process_simplex({tri.begin(), tri.end()});
         }
         for (const auto& edge : simplices.generating_free_edges) {
-            sub.process_simplex(edge);
+            sub.process_simplex({edge.begin(), edge.end()});
         }
 
         auto filtration = sub.get_filtration();

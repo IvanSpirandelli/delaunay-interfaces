@@ -1,5 +1,5 @@
 // Benchmark: random point clouds with all distinct colors.
-// Measures wall-clock time for get_barycentric_subdivision_and_filtration.
+// Measures wall-clock time for compute_barycentric_subdivision_and_filtration.
 
 #include <iomanip>
 #include <iostream>
@@ -43,7 +43,7 @@ InputData generate_input(size_t n, unsigned seed = 42) {
 TimingResult run_test(const InputData& data, bool weighted, bool alpha) {
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto [verts, filtration, mc_simplices, vai] = get_barycentric_subdivision_and_filtration(
+    auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
         data.points, data.colors, data.radii, weighted, alpha);
 
     auto end = std::chrono::high_resolution_clock::now();

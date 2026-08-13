@@ -30,8 +30,8 @@ struct InterfaceSurfacePy {
     Eigen::MatrixXd vertices;
     Filtration filtration;
     Tetrahedra generating_tetrahedra;
-    std::vector<std::vector<int>> generating_free_triangles;
-    std::vector<std::vector<int>> generating_free_edges;
+    std::vector<FreeTriangle> generating_free_triangles;
+    std::vector<FreeEdge> generating_free_edges;
     VertexAtomIndices vertex_atom_indices;
     bool weighted;
     bool alpha;
@@ -91,8 +91,8 @@ struct SimplifiedSurfacePy {
     VertexAtomIndices vertex_atom_indices;
     std::vector<double> vertex_filtration;
     Tetrahedra generating_tetrahedra;
-    std::vector<std::vector<int>> generating_free_triangles;
-    std::vector<std::vector<int>> generating_free_edges;
+    std::vector<FreeTriangle> generating_free_triangles;
+    std::vector<FreeEdge> generating_free_edges;
     bool weighted;
     bool alpha;
 
@@ -110,7 +110,7 @@ struct SimplifiedSurfacePy {
         , alpha(surface.alpha) {}
 };
 
-SimplifiedSurfacePy get_simplified_surface_py(
+SimplifiedSurfacePy compute_simplified_surface_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -118,13 +118,13 @@ SimplifiedSurfacePy get_simplified_surface_py(
     std::optional<bool> alpha
 ) {
     Points points = numpy_to_points(points_arr);
-    auto surface = get_simplified_surface(
+    auto surface = compute_simplified_surface(
         points, color_labels, radii,
         weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()));
     return SimplifiedSurfacePy(surface);
 }
 
-std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtration_py(
+std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtration_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -133,7 +133,7 @@ std::pair<Eigen::MatrixXd, Filtration> get_barycentric_subdivision_and_filtratio
     bool lower_star
 ) {
     Points points = numpy_to_points(points_arr);
-    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(
+    auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
         points, color_labels, radii,
         weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()), lower_star);
     return {points_to_numpy(vertices), filtration};
@@ -214,8 +214,8 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "list of arrays\n"
             "    List of tetrahedra (each is array of 4 vertex indices)");
 
-    m.def("get_barycentric_subdivision_and_filtration",
-        &get_barycentric_subdivision_and_filtration_py,
+    m.def("compute_barycentric_subdivision_and_filtration",
+        &compute_barycentric_subdivision_and_filtration_py,
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},
@@ -265,8 +265,8 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         .def_readonly("weighted", &SimplifiedSurfacePy::weighted)
         .def_readonly("alpha", &SimplifiedSurfacePy::alpha);
 
-    m.def("get_simplified_surface",
-        &get_simplified_surface_py,
+    m.def("compute_simplified_surface",
+        &compute_simplified_surface_py,
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},

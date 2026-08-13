@@ -102,7 +102,7 @@ std::vector<double> SimplifiedSubdivision::get_vertex_filtration() const {
     return result;
 }
 
-SimplifiedSurface get_simplified_surface(
+SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,

@@ -31,7 +31,8 @@ using AsRt = CGAL::Regular_triangulation_3<Kernel, AsTds>;
 using WeightedAlphaShape = CGAL::Alpha_shape_3<AsRt>;
 using IndexedWeightedPoint = std::pair<WeightedPoint, int>;
 
-static bool is_multicolored_set(const std::vector<int>& indices, const ColorLabels& color_labels) {
+template <class VertexIndices>
+static bool is_multicolored(const VertexIndices& indices, const ColorLabels& color_labels) {
     if (indices.size() < 2) return false;
     int first_color = color_labels[indices[0]];
     for (size_t i = 1; i < indices.size(); ++i) {
@@ -40,11 +41,24 @@ static bool is_multicolored_set(const std::vector<int>& indices, const ColorLabe
     return false;
 }
 
-static bool is_multicolored_tet(const Tetrahedron& tet, const ColorLabels& color_labels) {
-    int first_color = color_labels[tet[0]];
-    return color_labels[tet[1]] != first_color
-        || color_labels[tet[2]] != first_color
-        || color_labels[tet[3]] != first_color;
+// Multicolored finite cells of any CGAL triangulation carrying the input
+// point index as vertex info.
+template <class Triangulation>
+static Tetrahedra collect_multicolored_cells(
+    const Triangulation& t,
+    const ColorLabels& color_labels
+) {
+    Tetrahedra result;
+    for (auto cit = t.finite_cells_begin(); cit != t.finite_cells_end(); ++cit) {
+        Tetrahedron tet;
+        for (int i = 0; i < 4; ++i) {
+            tet[i] = cit->vertex(i)->info();
+        }
+        if (is_multicolored(tet, color_labels)) {
+            result.push_back(tet);
+        }
+    }
+    return result;
 }
 
 static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
@@ -77,18 +91,11 @@ static Tetrahedra collect_multicolored_alpha_tetrahedra(
         for (int i = 0; i < 4; ++i) {
             tet[i] = cit->vertex(i)->info();
         }
-        if (is_multicolored_tet(tet, color_labels)) {
+        if (is_multicolored(tet, color_labels)) {
             result.push_back(tet);
         }
     }
     return result;
-}
-
-bool InterfaceGenerator::is_multicolored(
-    const Tetrahedron& tet,
-    const ColorLabels& color_labels
-) const {
-    return is_multicolored_tet(tet, color_labels);
 }
 
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delaunay(
@@ -103,15 +110,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delauna
     }
 
     MulticoloredSimplices result;
-    for (auto cit = dt.finite_cells_begin(); cit != dt.finite_cells_end(); ++cit) {
-        Tetrahedron tet;
-        for (int i = 0; i < 4; ++i) {
-            tet[i] = cit->vertex(i)->info();
-        }
-        if (is_multicolored(tet, color_labels)) {
-            result.generating_tetrahedra.push_back(tet);
-        }
-    }
+    result.generating_tetrahedra = collect_multicolored_cells(dt, color_labels);
     return result;
 }
 
@@ -132,15 +131,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     }
 
     MulticoloredSimplices result;
-    for (auto cit = rt.finite_cells_begin(); cit != rt.finite_cells_end(); ++cit) {
-        Tetrahedron tet;
-        for (int i = 0; i < 4; ++i) {
-            tet[i] = cit->vertex(i)->info();
-        }
-        if (is_multicolored(tet, color_labels)) {
-            result.generating_tetrahedra.push_back(tet);
-        }
-    }
+    result.generating_tetrahedra = collect_multicolored_cells(rt, color_labels);
     return result;
 }
 
@@ -192,14 +183,15 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
 
         auto cell = fit->first;
         int face_idx = fit->second;
-        std::vector<int> tri_indices;
+        FreeTriangle tri;
+        int k = 0;
         for (int i = 0; i < 4; ++i) {
             if (i == face_idx) continue;
-            tri_indices.push_back(cell->vertex(i)->info());
+            tri[k++] = cell->vertex(i)->info();
         }
 
-        if (is_multicolored_set(tri_indices, color_labels)) {
-            result.generating_free_triangles.push_back(tri_indices);
+        if (is_multicolored(tri, color_labels)) {
+            result.generating_free_triangles.push_back(tri);
         }
     }
 
@@ -208,11 +200,10 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
         if (as.classify(*eit) != WeightedAlphaShape::SINGULAR) continue;
 
         auto cell = eit->first;
-        int idx0 = cell->vertex(eit->second)->info();
-        int idx1 = cell->vertex(eit->third)->info();
+        FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
 
-        if (color_labels[idx0] != color_labels[idx1]) {
-            result.generating_free_edges.push_back({idx0, idx1});
+        if (is_multicolored(edge, color_labels)) {
+            result.generating_free_edges.push_back(edge);
         }
     }
 
@@ -227,7 +218,7 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     bool alpha,
     bool lower_star
 ) const {
-    auto [vertices, filtration, simplices, vertex_atom_indices] = get_barycentric_subdivision_and_filtration(
+    auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
         points, color_labels, radii, weighted, alpha, lower_star
     );
 

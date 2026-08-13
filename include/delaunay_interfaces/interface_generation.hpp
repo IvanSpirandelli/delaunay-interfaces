@@ -56,11 +56,9 @@ private:
         const ColorLabels& color_labels,
         const Radii& radii
     ) const;
-
-    bool is_multicolored(const Tetrahedron& tet, const ColorLabels& color_labels) const;
 };
 
-[[nodiscard]] std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_barycentric_subdivision_and_filtration(
+[[nodiscard]] std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -71,7 +69,7 @@ private:
 
 // Simplified 2-color surface: each vertex = midpoint of one cross-color atom pair.
 // Requires exactly 2 distinct colors in the input.
-[[nodiscard]] SimplifiedSurface get_simplified_surface(
+[[nodiscard]] SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,

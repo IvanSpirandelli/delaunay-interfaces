@@ -23,7 +23,10 @@ namespace delaunay_interfaces {
         parts.push_back(std::move(entry.second));
     }
 
-    std::sort(parts.begin(), parts.end(),
+    // Stable so that equal-size parts keep their color order (the map above
+    // yields them sorted by color), making the output deterministic across
+    // standard-library implementations.
+    std::stable_sort(parts.begin(), parts.end(),
         [](const auto& a, const auto& b) { return a.size() > b.size(); }
     );
 

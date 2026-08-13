@@ -14,6 +14,8 @@ using ColorLabels = std::vector<int>;
 using Radii = std::vector<double>;
 using Tetrahedron = std::array<int, 4>;
 using Tetrahedra = std::vector<Tetrahedron>;
+using FreeTriangle = std::array<int, 3>;
+using FreeEdge = std::array<int, 2>;
 using Simplex = std::vector<int32_t>;
 using SimplexWithFiltration = std::tuple<Simplex, double>;
 using Filtration = std::vector<SimplexWithFiltration>;
@@ -22,8 +24,8 @@ using Partition = std::vector<std::vector<int>>;
 // Multicolored simplices from the complex (generating tetrahedra + free lower-dimensional)
 struct MulticoloredSimplices {
     Tetrahedra generating_tetrahedra;
-    std::vector<std::vector<int>> generating_free_triangles;
-    std::vector<std::vector<int>> generating_free_edges;
+    std::vector<FreeTriangle> generating_free_triangles;
+    std::vector<FreeEdge> generating_free_edges;
 };
 
 // Vertex-to-atom mapping: vertex_atom_indices[i] = sorted input atom indices for vertex i

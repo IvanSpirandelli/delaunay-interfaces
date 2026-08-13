@@ -225,8 +225,8 @@ void test_simplified_rejects_3_colors() {
     std::cout << "  Correctly rejects 3-color input - PASS\n";
 }
 
-void test_get_simplified_surface_delaunay() {
-    std::cout << "Test: get_simplified_surface (unweighted Delaunay)\n";
+void test_compute_simplified_surface_delaunay() {
+    std::cout << "Test: compute_simplified_surface (unweighted Delaunay)\n";
 
     Points points = {
         {0.0, 0.0, 0.0},
@@ -238,7 +238,7 @@ void test_get_simplified_surface_delaunay() {
     };
     ColorLabels colors = {1, 1, 1, 2, 2, 2};
 
-    auto surface = get_simplified_surface(points, colors, {}, false, false);
+    auto surface = compute_simplified_surface(points, colors, {}, false, false);
 
     // Deterministic fixture: 3 generating tets yield 6 cross-color midpoints,
     // 2 triangles (3-1 tets) and 1 quad (2-2 tet).
@@ -257,7 +257,7 @@ void test_get_simplified_surface_delaunay() {
     }
 
     // The simplified surface must be strictly coarser than the barycentric one.
-    auto bary_surface = get_barycentric_subdivision_and_filtration(
+    auto bary_surface = compute_barycentric_subdivision_and_filtration(
         points, colors, {}, false, false);
     auto& [bary_verts, bary_filt, bary_simp, bary_vai] = bary_surface;
     assert(bary_verts.size() == 17);
@@ -266,8 +266,8 @@ void test_get_simplified_surface_delaunay() {
     std::cout << "  PASS\n";
 }
 
-void test_get_simplified_surface_weighted_alpha() {
-    std::cout << "Test: get_simplified_surface (weighted alpha)\n";
+void test_compute_simplified_surface_weighted_alpha() {
+    std::cout << "Test: compute_simplified_surface (weighted alpha)\n";
 
     Points points = {
         {0.0, 0.0, 0.0},
@@ -282,7 +282,7 @@ void test_get_simplified_surface_weighted_alpha() {
     // multicolored simplices (0.3 left it empty and the test vacuous).
     Radii radii(points.size(), 1.0);
 
-    auto surface = get_simplified_surface(points, colors, radii, true, true);
+    auto surface = compute_simplified_surface(points, colors, radii, true, true);
 
     // Deterministic fixture: one 3-1 tet triangle plus two free bicolored
     // edges survive the alpha filtering at r=1.0.
@@ -376,7 +376,7 @@ void test_random_vertices_equal_multicolored_edges() {
     }
 
     // Compute simplified surface
-    auto surface = get_simplified_surface(points, colors, {}, false, false);
+    auto surface = compute_simplified_surface(points, colors, {}, false, false);
 
     std::cout << "  Multicolored Delaunay edges: " << mc_edges.size() << "\n";
     std::cout << "  Simplified vertices: " << surface.vertices.size() << "\n";
@@ -392,7 +392,7 @@ void test_random_area_equality() {
 
     // Barycentric surface
     auto [bary_verts, bary_filt, bary_simp, bary_vai] =
-        get_barycentric_subdivision_and_filtration(points, colors, {}, false, false);
+        compute_barycentric_subdivision_and_filtration(points, colors, {}, false, false);
 
     double bary_area = 0.0;
     for (const auto& [simplex, val] : bary_filt) {
@@ -403,7 +403,7 @@ void test_random_area_equality() {
     }
 
     // Simplified surface
-    auto surface = get_simplified_surface(points, colors, {}, false, false);
+    auto surface = compute_simplified_surface(points, colors, {}, false, false);
 
     double simp_area = 0.0;
     for (const auto& tri : surface.triangles) {
@@ -430,7 +430,7 @@ void test_random_mesh_manifold() {
     std::cout << "Test: Random Cloud — Mesh is Manifold (no duplicate/non-manifold edges)\n";
 
     auto [points, colors] = make_random_2color_cloud(60, /*seed=*/42);
-    auto surface = get_simplified_surface(points, colors, {}, false, false);
+    auto surface = compute_simplified_surface(points, colors, {}, false, false);
 
     using Edge = std::array<int32_t, 2>;
     auto make_edge = [](int32_t a, int32_t b) -> Edge {
@@ -506,8 +506,8 @@ int main() {
         test_simplified_vertex_dedup();
         test_simplified_vs_barycentric_vertices();
         test_simplified_rejects_3_colors();
-        test_get_simplified_surface_delaunay();
-        test_get_simplified_surface_weighted_alpha();
+        test_compute_simplified_surface_delaunay();
+        test_compute_simplified_surface_weighted_alpha();
         test_quad_cyclic_order();
         test_random_vertices_equal_multicolored_edges();
         test_random_area_equality();

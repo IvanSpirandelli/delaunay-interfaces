@@ -39,10 +39,10 @@ MulticoloredSimplices run_subdivision(
         subdivision.process_tetrahedron(tet);
     }
     for (const auto& tri : mc_simplices.generating_free_triangles) {
-        subdivision.process_simplex(tri);
+        subdivision.process_simplex({tri.begin(), tri.end()});
     }
     for (const auto& edge : mc_simplices.generating_free_edges) {
-        subdivision.process_simplex(edge);
+        subdivision.process_simplex({edge.begin(), edge.end()});
     }
 
     return mc_simplices;

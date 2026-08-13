@@ -261,7 +261,7 @@ Filtration BarycentricSubdivision::get_filtration() const {
     return result;
 }
 
-std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> get_barycentric_subdivision_and_filtration(
+std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
