@@ -66,46 +66,22 @@ bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
     return std::includes(big.begin(), big.end(), small.begin(), small.end());
 }
 
-// Barycenter positions per combination. Min-level combinations (smallest flat
-// set) get the flat average of the original points; every other combination is
-// the average of the min-level barycenters whose flat set it contains. For
-// 2-color partitions this equals the flat average; for 3+ colors it differs.
-std::vector<Point3D> hierarchical_barycenters(
+// Barycenter positions per combination: the centroid of the barycenters of
+// the parts of the combination's sub-partition. For 2-color partitions this
+// equals the flat average of the original points; for 3+ colors it differs.
+std::vector<Point3D> combination_barycenters(
     const std::vector<Combination>& combinations,
     const Points& points
 ) {
-    const size_t n = combinations.size();
-
-    size_t min_level = combinations[0].flat.size();
-    for (size_t i = 1; i < n; ++i) {
-        min_level = std::min(min_level, combinations[i].flat.size());
-    }
-
-    std::vector<size_t> min_level_indices;
-    for (size_t i = 0; i < n; ++i) {
-        if (combinations[i].flat.size() == min_level) {
-            min_level_indices.push_back(i);
-        }
-    }
-
-    std::vector<Point3D> barycenters(n);
-    for (size_t idx : min_level_indices) {
-        barycenters[idx] = compute_barycenter(points, combinations[idx].flat);
-    }
-
-    for (size_t i = 0; i < n; ++i) {
-        if (combinations[i].flat.size() == min_level) continue;
+    std::vector<Point3D> barycenters;
+    barycenters.reserve(combinations.size());
+    for (const auto& comb : combinations) {
         Point3D sum = Point3D::Zero();
-        int count = 0;
-        for (size_t midx : min_level_indices) {
-            if (is_subset(combinations[midx].flat, combinations[i].flat)) {
-                sum += barycenters[midx];
-                ++count;
-            }
+        for (const auto& part : comb.parts) {
+            sum += compute_barycenter(points, part);
         }
-        barycenters[i] = sum / static_cast<double>(count);
+        barycenters.push_back(sum / static_cast<double>(comb.parts.size()));
     }
-
     return barycenters;
 }
 
@@ -224,7 +200,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         created[i] = info.newly_created;
     }
 
-    auto new_barycenters = hierarchical_barycenters(combinations, points_);
+    auto new_barycenters = combination_barycenters(combinations, points_);
     for (size_t i = 0; i < n; ++i) {
         if (created[i]) {
             barycenters_.push_back(new_barycenters[i]);
