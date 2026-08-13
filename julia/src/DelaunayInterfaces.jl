@@ -150,6 +150,28 @@ function InterfaceSurface(
 end
 
 """
+    InterfaceSurface(points, color_labels, radius::Real; alpha=true, lower_star=false)
+
+Uniform-radius variant: `alpha=true` builds the alpha complex with parameter
+`radius^2` (routed through CGAL's unweighted alpha shape). `alpha=false`
+throws: a radius has no effect on the plain Delaunay complex, so omit it.
+"""
+function InterfaceSurface(
+    points::Vector{Vector{Float64}},
+    color_labels::Vector{Int},
+    radius::Real;
+    alpha::Bool=true,
+    lower_star::Bool=false
+)
+    gen = InterfaceGenerator()
+    n_points = length(points)
+    flat_points = reduce(vcat, points)
+    color_labels_i32 = Int32.(color_labels)
+    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, Float64(radius), alpha, lower_star)
+    return InterfaceSurface(cxx_surface)
+end
+
+"""
     get_triangles(surface::InterfaceSurface)
 
 Extract only the triangle faces (2-simplices) from the filtration.

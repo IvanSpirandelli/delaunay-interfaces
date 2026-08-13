@@ -752,6 +752,61 @@ void test_mixed_free_simplices() {
     std::cout << "  PASS\n";
 }
 
+// ============= Scalar Radius vs Uniform Radii Vector =============
+// A single radius r must produce the same interface as radii all equal to r:
+// the scalar overload routes through CGAL's unweighted alpha shape with
+// alpha = r^2, the vector overload through the weighted one at alpha = 0.
+// Vertex ids may differ (different triangulation traversal), so compare
+// counts and sorted filtration values.
+
+void test_scalar_radius_equals_uniform_vector() {
+    std::cout << "Test: scalar radius == uniform radii vector\n";
+
+    const std::vector<const ColorLabels*> colorings = {&colors_31, &colors_22, &colors_211, &colors_1111};
+    for (double r : {0.51, 0.58, 0.62}) {
+        for (const auto* colors : colorings) {
+            Radii radii(4, r);
+            auto [v_vec, f_vec, m_vec, a_vec] = compute_barycentric_subdivision_and_filtration(
+                tet_points, *colors, radii, true);
+            auto [v_sca, f_sca, m_sca, a_sca] = compute_barycentric_subdivision_and_filtration(
+                tet_points, *colors, r, true);
+
+            assert(v_vec.size() == v_sca.size());
+            auto c_vec = count_filtration(f_vec);
+            auto c_sca = count_filtration(f_sca);
+            assert(c_vec.vertices == c_sca.vertices);
+            assert(c_vec.edges == c_sca.edges);
+            assert(c_vec.triangles == c_sca.triangles);
+
+            // get_filtration sorts by (dimension, value): values must agree.
+            assert(f_vec.size() == f_sca.size());
+            for (size_t i = 0; i < f_vec.size(); ++i) {
+                assert(std::abs(std::get<1>(f_vec[i]) - std::get<1>(f_sca[i])) < 1e-12);
+            }
+        }
+    }
+
+    // Free simplices: the mixed fixture must classify identically.
+    Radii radii(9, 0.62);
+    InterfaceGenerator gen;
+    auto m_vec = gen.collect_multicolored_simplices(mixed_points, colors_mixed, radii, true);
+    auto m_sca = gen.collect_multicolored_simplices(mixed_points, colors_mixed, 0.62, true);
+    assert(m_vec.generating_tetrahedra.size() == m_sca.generating_tetrahedra.size());
+    assert(m_vec.generating_free_triangles.size() == m_sca.generating_free_triangles.size());
+    assert(m_vec.generating_free_edges.size() == m_sca.generating_free_edges.size());
+
+    // A radius with alpha=false is rejected (plain Delaunay needs no radius).
+    bool threw = false;
+    try {
+        (void)gen.collect_multicolored_simplices(mixed_points, colors_mixed, 0.62, false);
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+
+    std::cout << "  PASS\n";
+}
+
 // ============= Random Point Cloud Consistency Invariants =============
 
 static std::string classify_tet_split(const Tetrahedron& tet, const ColorLabels& colors) {
@@ -972,6 +1027,9 @@ int main() {
 
         std::cout << "\n--- Mixed Free Simplices ---\n";
         test_mixed_free_simplices();
+
+        std::cout << "\n--- Scalar Radius ---\n";
+        test_scalar_radius_equals_uniform_vector();
 
         std::cout << "\n--- Random Point Cloud (100 deterministic seeds) ---\n";
         // Fixed generator seed so every run tests the same 100 point clouds;

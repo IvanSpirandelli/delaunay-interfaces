@@ -277,4 +277,20 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
             subdivision.get_vertex_atom_indices()};
 }
 
+std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha,
+    bool lower_star
+) {
+    detail::validate_inputs(points, color_labels, Radii{});
+
+    BarycentricSubdivision subdivision(points, color_labels, lower_star);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius, alpha);
+
+    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
+            subdivision.get_vertex_atom_indices()};
+}
+
 } // namespace delaunay_interfaces

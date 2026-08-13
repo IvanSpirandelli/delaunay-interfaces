@@ -79,6 +79,29 @@ public:
             points, color_labels, radii,
             alpha.value_or(!radii.empty())).generating_tetrahedra;
     }
+
+    InterfaceSurfacePy compute_interface_surface_uniform(
+        const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
+        const ColorLabels& color_labels,
+        double radius,
+        bool alpha,
+        bool lower_star
+    ) {
+        Points points = numpy_to_points(points_arr);
+        auto surface = gen_.compute_interface_surface(points, color_labels, radius, alpha, lower_star);
+        return InterfaceSurfacePy(surface);
+    }
+
+    Tetrahedra get_multicolored_tetrahedra_uniform(
+        const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
+        const ColorLabels& color_labels,
+        double radius,
+        bool alpha
+    ) {
+        Points points = numpy_to_points(points_arr);
+        return gen_.collect_multicolored_simplices(
+            points, color_labels, radius, alpha).generating_tetrahedra;
+    }
 };
 
 struct SimplifiedSurfacePy {
@@ -135,6 +158,30 @@ std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtr
     return {points_to_numpy(vertices), filtration};
 }
 
+SimplifiedSurfacePy compute_simplified_surface_uniform_py(
+    const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha
+) {
+    Points points = numpy_to_points(points_arr);
+    auto surface = compute_simplified_surface(points, color_labels, radius, alpha);
+    return SimplifiedSurfacePy(surface);
+}
+
+std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtration_uniform_py(
+    const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha,
+    bool lower_star
+) {
+    Points points = numpy_to_points(points_arr);
+    auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
+        points, color_labels, radius, alpha, lower_star);
+    return {points_to_numpy(vertices), filtration};
+}
+
 PYBIND11_MODULE(delaunay_interfaces, m) {
     m.doc() = "DelaunayInterfaces: Compute interface surfaces from multicolored point clouds";
 
@@ -183,6 +230,14 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "-------\n"
             "InterfaceSurface\n"
             "    The computed interface surface")
+        .def("compute_interface_surface", &InterfaceGeneratorPy::compute_interface_surface_uniform,
+            py::arg("points"),
+            py::arg("color_labels"),
+            py::arg("radius"),
+            py::arg("alpha") = true,
+            py::arg("lower_star") = false,
+            "Uniform-radius variant: alpha=True builds the alpha complex with\n"
+            "parameter radius^2. alpha=False raises: use the radii-free call.")
         .def("get_multicolored_tetrahedra", &InterfaceGeneratorPy::get_multicolored_tetrahedra,
             py::arg("points"),
             py::arg("color_labels"),
@@ -202,7 +257,14 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "Returns\n"
             "-------\n"
             "list of arrays\n"
-            "    List of tetrahedra (each is array of 4 vertex indices)");
+            "    List of tetrahedra (each is array of 4 vertex indices)")
+        .def("get_multicolored_tetrahedra", &InterfaceGeneratorPy::get_multicolored_tetrahedra_uniform,
+            py::arg("points"),
+            py::arg("color_labels"),
+            py::arg("radius"),
+            py::arg("alpha") = true,
+            "Uniform-radius variant: alpha=True uses the alpha complex with\n"
+            "parameter radius^2. alpha=False raises: use the radii-free call.");
 
     m.def("compute_barycentric_subdivision_and_filtration",
         &compute_barycentric_subdivision_and_filtration_py,
@@ -252,6 +314,16 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         .def_readonly("weighted", &SimplifiedSurfacePy::weighted)
         .def_readonly("alpha", &SimplifiedSurfacePy::alpha);
 
+    m.def("compute_barycentric_subdivision_and_filtration",
+        &compute_barycentric_subdivision_and_filtration_uniform_py,
+        py::arg("points"),
+        py::arg("color_labels"),
+        py::arg("radius"),
+        py::arg("alpha") = true,
+        py::arg("lower_star") = false,
+        "Uniform-radius variant: alpha=True builds the alpha complex with\n"
+        "parameter radius^2. alpha=False raises: use the radii-free call.");
+
     m.def("compute_simplified_surface",
         &compute_simplified_surface_py,
         py::arg("points"),
@@ -270,6 +342,15 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "Returns\n"
         "-------\n"
         "SimplifiedSurface");
+
+    m.def("compute_simplified_surface",
+        &compute_simplified_surface_uniform_py,
+        py::arg("points"),
+        py::arg("color_labels"),
+        py::arg("radius"),
+        py::arg("alpha") = true,
+        "Uniform-radius variant: alpha=True builds the alpha complex with\n"
+        "parameter radius^2. alpha=False raises: use the radii-free call.");
 
     m.attr("__version__") = "0.1.0";
 }

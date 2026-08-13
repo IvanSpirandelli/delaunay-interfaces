@@ -44,10 +44,10 @@ void test_all_distinct_colors() {
 
     // Compute interface surface using unweighted Delaunay
     InterfaceGenerator generator;
-    auto surface = generator.compute_interface_surface(points, colors, {}, false);
+    auto surface = generator.compute_interface_surface(points, colors, Radii{}, false);
 
     // Count tetrahedra by getting them directly
-    auto tetrahedra = generator.collect_multicolored_simplices(points, colors, {}, false).generating_tetrahedra;
+    auto tetrahedra = generator.collect_multicolored_simplices(points, colors, Radii{}, false).generating_tetrahedra;
     size_t num_tetrahedra = tetrahedra.size();
 
     // Count triangles in filtration (simplices with 3 vertices)
@@ -93,7 +93,7 @@ void test_filtration_structure() {
     }
 
     InterfaceGenerator generator;
-    auto surface = generator.compute_interface_surface(points, colors, {}, false);
+    auto surface = generator.compute_interface_surface(points, colors, Radii{}, false);
 
     // Count simplices by dimension
     size_t num_vertices = 0;

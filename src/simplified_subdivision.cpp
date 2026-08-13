@@ -126,4 +126,28 @@ SimplifiedSurface compute_simplified_surface(
     };
 }
 
+SimplifiedSurface compute_simplified_surface(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha
+) {
+    detail::validate_inputs(points, color_labels, Radii{});
+
+    SimplifiedSubdivision subdivision(points, color_labels);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius, alpha);
+
+    return SimplifiedSurface{
+        subdivision.get_midpoints(),
+        subdivision.get_triangles(),
+        subdivision.get_quads(),
+        subdivision.get_edges(),
+        subdivision.get_vertex_atom_indices(),
+        subdivision.get_vertex_filtration(),
+        std::move(mc_simplices),
+        false,
+        alpha
+    };
+}
+
 } // namespace delaunay_interfaces

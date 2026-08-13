@@ -238,7 +238,7 @@ void test_compute_simplified_surface_delaunay() {
     };
     ColorLabels colors = {1, 1, 1, 2, 2, 2};
 
-    auto surface = compute_simplified_surface(points, colors, {}, false);
+    auto surface = compute_simplified_surface(points, colors, Radii{}, false);
 
     // Deterministic fixture: 3 generating tets yield 6 cross-color midpoints,
     // 2 triangles (3-1 tets) and 1 quad (2-2 tet).
@@ -258,7 +258,7 @@ void test_compute_simplified_surface_delaunay() {
 
     // The simplified surface must be strictly coarser than the barycentric one.
     auto bary_surface = compute_barycentric_subdivision_and_filtration(
-        points, colors, {}, false);
+        points, colors, Radii{}, false);
     auto& [bary_verts, bary_filt, bary_simp, bary_vai] = bary_surface;
     assert(bary_verts.size() == 17);
     assert(surface.vertices.size() < bary_verts.size());
@@ -359,7 +359,7 @@ void test_random_vertices_equal_multicolored_edges() {
 
     // Get all multicolored tetrahedra from the Delaunay triangulation
     InterfaceGenerator gen;
-    auto tets = gen.collect_multicolored_simplices(points, colors, {}, false).generating_tetrahedra;
+    auto tets = gen.collect_multicolored_simplices(points, colors, Radii{}, false).generating_tetrahedra;
 
     // Collect unique multicolored edges
     std::set<std::array<int, 2>> mc_edges;
@@ -376,7 +376,7 @@ void test_random_vertices_equal_multicolored_edges() {
     }
 
     // Compute simplified surface
-    auto surface = compute_simplified_surface(points, colors, {}, false);
+    auto surface = compute_simplified_surface(points, colors, Radii{}, false);
 
     std::cout << "  Multicolored Delaunay edges: " << mc_edges.size() << "\n";
     std::cout << "  Simplified vertices: " << surface.vertices.size() << "\n";
@@ -392,7 +392,7 @@ void test_random_area_equality() {
 
     // Barycentric surface
     auto [bary_verts, bary_filt, bary_simp, bary_vai] =
-        compute_barycentric_subdivision_and_filtration(points, colors, {}, false);
+        compute_barycentric_subdivision_and_filtration(points, colors, Radii{}, false);
 
     double bary_area = 0.0;
     for (const auto& [simplex, val] : bary_filt) {
@@ -403,7 +403,7 @@ void test_random_area_equality() {
     }
 
     // Simplified surface
-    auto surface = compute_simplified_surface(points, colors, {}, false);
+    auto surface = compute_simplified_surface(points, colors, Radii{}, false);
 
     double simp_area = 0.0;
     for (const auto& tri : surface.triangles) {
@@ -430,7 +430,7 @@ void test_random_mesh_manifold() {
     std::cout << "Test: Random Cloud — Mesh is Manifold (no duplicate/non-manifold edges)\n";
 
     auto [points, colors] = make_random_2color_cloud(60, /*seed=*/42);
-    auto surface = compute_simplified_surface(points, colors, {}, false);
+    auto surface = compute_simplified_surface(points, colors, Radii{}, false);
 
     using Edge = std::array<int32_t, 2>;
     auto make_edge = [](int32_t a, int32_t b) -> Edge {

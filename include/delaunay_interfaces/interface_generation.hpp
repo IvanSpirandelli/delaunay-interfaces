@@ -16,6 +16,18 @@ public:
         bool lower_star = false
     ) const;
 
+    // Uniform-radius overload: alpha=true builds the alpha complex with
+    // parameter radius^2 via CGAL's unweighted alpha shape. alpha=false
+    // throws: a radius has no effect on the plain Delaunay complex, so use
+    // the radii-free overload instead.
+    [[nodiscard]] InterfaceSurface compute_interface_surface(
+        const Points& points,
+        const ColorLabels& color_labels,
+        double radius,
+        bool alpha = true,
+        bool lower_star = false
+    ) const;
+
     // Radii-free overload: plain (unweighted) Delaunay complex.
     [[nodiscard]] InterfaceSurface compute_interface_surface(
         const Points& points,
@@ -30,6 +42,14 @@ public:
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii,
+        bool alpha = true
+    ) const;
+
+    // Uniform-radius overload; see compute_interface_surface.
+    [[nodiscard]] MulticoloredSimplices collect_multicolored_simplices(
+        const Points& points,
+        const ColorLabels& color_labels,
+        double radius,
         bool alpha = true
     ) const;
 
@@ -56,6 +76,12 @@ private:
         const ColorLabels& color_labels,
         const Radii& radii
     ) const;
+
+    MulticoloredSimplices collect_multicolored_simplices_uniform_alpha(
+        const Points& points,
+        const ColorLabels& color_labels,
+        double radius
+    ) const;
 };
 
 [[nodiscard]] std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
@@ -66,12 +92,29 @@ private:
     bool lower_star = false
 );
 
+// Uniform-radius overload; see InterfaceGenerator::compute_interface_surface.
+[[nodiscard]] std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha = true,
+    bool lower_star = false
+);
+
 // Simplified 2-color surface: each vertex = midpoint of one cross-color atom pair.
 // Requires exactly 2 distinct colors in the input.
 [[nodiscard]] SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
+    bool alpha = true
+);
+
+// Uniform-radius overload; see InterfaceGenerator::compute_interface_surface.
+[[nodiscard]] SimplifiedSurface compute_simplified_surface(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
     bool alpha = true
 );
 

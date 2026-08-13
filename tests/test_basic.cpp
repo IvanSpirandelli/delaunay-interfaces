@@ -78,7 +78,7 @@ void test_simple_delaunay() {
     InterfaceGenerator generator;
 
     try {
-        auto surface = generator.compute_interface_surface(points, colors, {}, false);
+        auto surface = generator.compute_interface_surface(points, colors, Radii{}, false);
         std::cout << "  Found " << surface.vertices.size() << " barycenters\n";
         std::cout << "  Found " << surface.filtration.size() << " filtration simplices\n";
         assert(surface.vertices.size() > 0);
@@ -137,8 +137,8 @@ void test_simple_delaunay_lower_star() {
     InterfaceGenerator generator;
 
     try {
-        auto upper = generator.compute_interface_surface(points, colors, {}, false, false);
-        auto lower = generator.compute_interface_surface(points, colors, {}, false, true);
+        auto upper = generator.compute_interface_surface(points, colors, Radii{}, false, false);
+        auto lower = generator.compute_interface_surface(points, colors, Radii{}, false, true);
 
         assert(lower.lower_star == true);
         assert(upper.lower_star == false);

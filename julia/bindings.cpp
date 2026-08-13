@@ -135,6 +135,19 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             Radii radii = julia_array_to_vector(radii_arr);
             return gen.compute_interface_surface(points, color_labels, radii, alpha, lower_star);
         })
+        .method("compute_interface_surface", [](
+            InterfaceGenerator& gen,
+            jlcxx::ArrayRef<double> flat_points,
+            int n_points,
+            jlcxx::ArrayRef<int> color_labels_arr,
+            double radius,
+            bool alpha,
+            bool lower_star
+        ) {
+            Points points = flat_points_to_cpp(flat_points, n_points);
+            ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
+            return gen.compute_interface_surface(points, color_labels, radius, alpha, lower_star);
+        })
         .method("get_multicolored_tetrahedra", [](
             InterfaceGenerator& gen,
             jlcxx::ArrayRef<double> flat_points,

@@ -23,6 +23,19 @@ inline void validate_inputs(
 }
 
 template <class Subdivision>
+void feed_subdivision(Subdivision& subdivision, const MulticoloredSimplices& mc_simplices) {
+    for (const auto& tet : mc_simplices.generating_tetrahedra) {
+        subdivision.process_tetrahedron(tet);
+    }
+    for (const auto& tri : mc_simplices.generating_free_triangles) {
+        subdivision.process_simplex({tri.begin(), tri.end()});
+    }
+    for (const auto& edge : mc_simplices.generating_free_edges) {
+        subdivision.process_simplex({edge.begin(), edge.end()});
+    }
+}
+
+template <class Subdivision>
 MulticoloredSimplices run_subdivision(
     Subdivision& subdivision,
     const Points& points,
@@ -33,17 +46,22 @@ MulticoloredSimplices run_subdivision(
     InterfaceGenerator generator;
     MulticoloredSimplices mc_simplices = generator.collect_multicolored_simplices(
         points, color_labels, radii, alpha);
+    feed_subdivision(subdivision, mc_simplices);
+    return mc_simplices;
+}
 
-    for (const auto& tet : mc_simplices.generating_tetrahedra) {
-        subdivision.process_tetrahedron(tet);
-    }
-    for (const auto& tri : mc_simplices.generating_free_triangles) {
-        subdivision.process_simplex({tri.begin(), tri.end()});
-    }
-    for (const auto& edge : mc_simplices.generating_free_edges) {
-        subdivision.process_simplex({edge.begin(), edge.end()});
-    }
-
+template <class Subdivision>
+MulticoloredSimplices run_subdivision(
+    Subdivision& subdivision,
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool alpha
+) {
+    InterfaceGenerator generator;
+    MulticoloredSimplices mc_simplices = generator.collect_multicolored_simplices(
+        points, color_labels, radius, alpha);
+    feed_subdivision(subdivision, mc_simplices);
     return mc_simplices;
 }
 
