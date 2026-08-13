@@ -1,10 +1,11 @@
-![Protein dimer interface surface](assets/protein_figure.png)
+![Protein dimer interface surface](assets/larger_examples_two_panel_blue_nolabels.png)
 # Delaunay Interfaces
 
 Compute interface surfaces between colored regions in 3D point clouds using barycentric subdivisions of multicolored tetrahedra of a (weighted) Delaunay triangulation.
 The surface is triangulated by construction and endowed with a filtration based on the distance of the surface to the generating points.
 
-An example is given in the above figure, where the points are atom centers of a Hepatitis-B protein dimer (PDB Id: 4bmg). Here the surface was constructed on a sub-complex of the Delaunay triangulation (the Alpha complex) defined by the atom radii increased by the radius of water. Yellow regions on the interface surface correspond to relatively close, dark regions to relatively distant generating points.
+An example is given in the above figure. On the left side, the colored points represent two subunits of a protein trimer of a human ligand, the third subunit
+was removed to reveal the interface surface constructed between the subunits. The interface surface is shown in a white to blue gradient. Blue regions on the interface surface correspond to relatively close, white regions to relatively distant generating points. Here the surface was constructed on a sub-complex of the Delaunay triangulation (the Alpha complex) defined by the atom radii increased by the radius of water. The image on the right shows an interface of a brain scan, where different differently colored parts of the point cloud correspond to different brain regions.
 
 An interactive visualization is available on [my website](https://ivanspirandelli.github.io).
 
@@ -16,10 +17,10 @@ An interactive visualization is available on [my website](https://ivanspirandell
 4. **Barycentric Subdivision**: Create interface simplices from partition barycenters
 5. **Filtration Values**: Assign values based on distances between color barycenters
 
-The algorithm works for any number of colors. Below is a visualization of the possible interfaces of a multicolored tetrahedron.
+The algorithm assumes points in general position and works for any number of colors. Below is a visualization of the four possible colorings of a multicolored tetrahedron and the corresponding interfaces.
 The interface construction is written in C++. Bindings for Julia and Python are available. See the rest of the README for build instructions.
 
-![Tetrahedron partition examples](assets/tetrahedra_figure.png)
+![Tetrahedron partition examples](assets/3d_example_blue_2x2_nolabels.png)
 
 ## Quick Start: Running the Examples
 
