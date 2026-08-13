@@ -55,14 +55,14 @@ void SimplifiedSubdivision::process_simplex(const std::vector<int>& simplex_vert
         return;
     case 2: {
         // Free bicolored triangle (2-1 partition): single edge.
-        std::array<int32_t, 2> edge = {cross_vertices[0], cross_vertices[1]};
+        SurfaceEdge edge = {cross_vertices[0], cross_vertices[1]};
         if (edge[0] > edge[1]) std::swap(edge[0], edge[1]);
         edges_.push_back(edge);
         return;
     }
     case 3: {
         // 3-1 tetrahedron: single triangle.
-        Triangle tri = {cross_vertices[0], cross_vertices[1], cross_vertices[2]};
+        SurfaceTriangle tri = {cross_vertices[0], cross_vertices[1], cross_vertices[2]};
         std::sort(tri.begin(), tri.end());
         triangles_.push_back(tri);
         return;
@@ -71,7 +71,7 @@ void SimplifiedSubdivision::process_simplex(const std::vector<int>& simplex_vert
         // 2-2 tetrahedron: quad. cross_vertices layout from the nested loop is
         // [a0b0, a0b1, a1b0, a1b1]; cyclic order a0b0 - a0b1 - a1b1 - a1b0
         // (consecutive quad vertices share an atom).
-        Quad quad = {cross_vertices[0], cross_vertices[1],
+        SurfaceQuad quad = {cross_vertices[0], cross_vertices[1],
                      cross_vertices[3], cross_vertices[2]};
         quads_.push_back(quad);
         return;

@@ -17,8 +17,8 @@ public:
     void process_simplex(const std::vector<int>& simplex_vertices);
 
     [[nodiscard]] const Points& get_vertices() const { return vertices_; }
-    [[nodiscard]] const std::vector<Triangle>& get_triangles() const { return triangles_; }
-    [[nodiscard]] const std::vector<Quad>& get_quads() const { return quads_; }
+    [[nodiscard]] const std::vector<SurfaceTriangle>& get_triangles() const { return triangles_; }
+    [[nodiscard]] const std::vector<SurfaceQuad>& get_quads() const { return quads_; }
     [[nodiscard]] const std::vector<std::array<int32_t, 2>>& get_edges() const { return edges_; }
     [[nodiscard]] std::vector<std::vector<int>> get_vertex_atom_indices() const;
     [[nodiscard]] std::vector<double> get_vertex_filtration() const;
@@ -30,8 +30,8 @@ private:
     const ColorLabels& color_labels_;
 
     Points vertices_;
-    std::vector<Triangle> triangles_;
-    std::vector<Quad> quads_;
+    std::vector<SurfaceTriangle> triangles_;
+    std::vector<SurfaceQuad> quads_;
     std::vector<std::array<int32_t, 2>> edges_;
 
     // Map from sorted atom pair → (vertex_id, filtration_value)
