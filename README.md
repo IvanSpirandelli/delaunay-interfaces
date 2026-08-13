@@ -99,7 +99,7 @@ python3 -m pip install numpy matplotlib jupyter
 
 2. Start Jupyter and open the notebook:
 ```bash
-jupyter notebook examples/python_examples.ipynb
+jupyter notebook examples/python_api_and_visualization.ipynb
 ```
 
 3. Run all cells. The notebook demonstrates:
@@ -111,10 +111,14 @@ jupyter notebook examples/python_examples.ipynb
 
 Start Jupyter and open the notebook:
 ```bash
-jupyter notebook examples/julia_examples.ipynb
+jupyter notebook examples/julia_api_and_visualization.ipynb
 ```
 
 The notebook contains the same examples as the python notebook, but with interactive visualizations.
+
+### Extended Julia Example
+
+`examples/julia_extended.ipynb` is a larger interactive showcase: a tabbed GLMakie figure with tetrahedron partition variants, protein assembly interfaces (4BMG, 6Z4U, 1ALY), and a brain segmentation interface with a filtration slider. Its input data ships with the repo in `examples/julia_extended_data.json`; computed surfaces are cached locally in a gitignored `.jld2` file on first run.
 
 ## API
 

@@ -44,6 +44,9 @@ compile_commands.json
 Testing/
 CTestTestfile.cmake
 
+# Local example caches
+examples/*.jld2
+
 .claude
 .cache
 index/
