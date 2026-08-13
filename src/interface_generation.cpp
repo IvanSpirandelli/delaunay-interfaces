@@ -91,7 +91,7 @@ bool InterfaceGenerator::is_multicolored(
     return is_multicolored_tet(tet, color_labels);
 }
 
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_delaunay(
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delaunay(
     const Points& points,
     const ColorLabels& color_labels
 ) const {
@@ -102,20 +102,20 @@ Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_delaunay(
         vh->info() = static_cast<int>(i);
     }
 
-    Tetrahedra result;
+    MulticoloredSimplices result;
     for (auto cit = dt.finite_cells_begin(); cit != dt.finite_cells_end(); ++cit) {
         Tetrahedron tet;
         for (int i = 0; i < 4; ++i) {
             tet[i] = cit->vertex(i)->info();
         }
         if (is_multicolored(tet, color_labels)) {
-            result.push_back(tet);
+            result.generating_tetrahedra.push_back(tet);
         }
     }
     return result;
 }
 
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_delaunay(
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighted_delaunay(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii
@@ -131,30 +131,20 @@ Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_delaunay(
         }
     }
 
-    Tetrahedra result;
+    MulticoloredSimplices result;
     for (auto cit = rt.finite_cells_begin(); cit != rt.finite_cells_end(); ++cit) {
         Tetrahedron tet;
         for (int i = 0; i < 4; ++i) {
             tet[i] = cit->vertex(i)->info();
         }
         if (is_multicolored(tet, color_labels)) {
-            result.push_back(tet);
+            result.generating_tetrahedra.push_back(tet);
         }
     }
     return result;
 }
 
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra_weighted_alpha(
-    const Points& points,
-    const ColorLabels& color_labels,
-    const Radii& radii
-) const {
-    auto wpoints = make_indexed_weighted_points(points, radii);
-    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
-    return collect_multicolored_alpha_tetrahedra(as, color_labels);
-}
-
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
@@ -166,20 +156,20 @@ Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
     }
     if (weighted) {
         return alpha
-            ? get_multicolored_tetrahedra_weighted_alpha(points, color_labels, radii)
-            : get_multicolored_tetrahedra_weighted_delaunay(points, color_labels, radii);
+            ? collect_multicolored_simplices_weighted_alpha(points, color_labels, radii)
+            : collect_multicolored_simplices_weighted_delaunay(points, color_labels, radii);
     }
-    return get_multicolored_tetrahedra_delaunay(points, color_labels);
+    return collect_multicolored_simplices_delaunay(points, color_labels);
 }
 
-Tetrahedra InterfaceGenerator::get_multicolored_tetrahedra(
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     const Points& points,
     const ColorLabels& color_labels
 ) const {
-    return get_multicolored_tetrahedra(points, color_labels, {}, false, false);
+    return collect_multicolored_simplices(points, color_labels, {}, false, false);
 }
 
-MulticoloredSimplices InterfaceGenerator::get_multicolored_simplices_weighted_alpha(
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighted_alpha(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii

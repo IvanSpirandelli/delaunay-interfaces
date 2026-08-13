@@ -77,9 +77,9 @@ public:
         std::optional<bool> alpha
     ) {
         Points points = numpy_to_points(points_arr);
-        return gen_.get_multicolored_tetrahedra(
+        return gen_.collect_multicolored_simplices(
             points, color_labels, radii,
-            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()));
+            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty())).generating_tetrahedra;
     }
 };
 

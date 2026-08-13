@@ -359,7 +359,7 @@ void test_random_vertices_equal_multicolored_edges() {
 
     // Get all multicolored tetrahedra from the Delaunay triangulation
     InterfaceGenerator gen;
-    auto tets = gen.get_multicolored_tetrahedra(points, colors, {}, false, false);
+    auto tets = gen.collect_multicolored_simplices(points, colors, {}, false, false).generating_tetrahedra;
 
     // Collect unique multicolored edges
     std::set<std::array<int, 2>> mc_edges;

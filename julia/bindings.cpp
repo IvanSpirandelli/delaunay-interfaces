@@ -149,7 +149,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
             Radii radii = julia_array_to_vector(radii_arr);
 
-            auto tets = gen.get_multicolored_tetrahedra(points, color_labels, radii, weighted, alpha);
+            auto tets = gen.collect_multicolored_simplices(points, color_labels, radii, weighted, alpha).generating_tetrahedra;
 
             // Convert to a flat array where each 4 consecutive integers represent one tetrahedron
             std::vector<int> result;

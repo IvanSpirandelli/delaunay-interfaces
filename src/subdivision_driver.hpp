@@ -32,29 +32,17 @@ MulticoloredSimplices run_subdivision(
     bool alpha
 ) {
     InterfaceGenerator generator;
-    MulticoloredSimplices mc_simplices;
+    MulticoloredSimplices mc_simplices = generator.collect_multicolored_simplices(
+        points, color_labels, radii, weighted, alpha);
 
-    if (weighted && alpha) {
-        mc_simplices = generator.get_multicolored_simplices_weighted_alpha(
-            points, color_labels, radii);
-
-        for (const auto& tet : mc_simplices.generating_tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-        for (const auto& tri : mc_simplices.generating_free_triangles) {
-            subdivision.process_simplex(tri);
-        }
-        for (const auto& edge : mc_simplices.generating_free_edges) {
-            subdivision.process_simplex(edge);
-        }
-    } else {
-        auto tetrahedra = generator.get_multicolored_tetrahedra(
-            points, color_labels, radii, weighted, alpha);
-
-        for (const auto& tet : tetrahedra) {
-            subdivision.process_tetrahedron(tet);
-        }
-        mc_simplices.generating_tetrahedra = std::move(tetrahedra);
+    for (const auto& tet : mc_simplices.generating_tetrahedra) {
+        subdivision.process_tetrahedron(tet);
+    }
+    for (const auto& tri : mc_simplices.generating_free_triangles) {
+        subdivision.process_simplex(tri);
+    }
+    for (const auto& edge : mc_simplices.generating_free_edges) {
+        subdivision.process_simplex(edge);
     }
 
     return mc_simplices;

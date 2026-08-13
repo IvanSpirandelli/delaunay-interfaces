@@ -21,7 +21,11 @@ public:
         const ColorLabels& color_labels
     ) const;
 
-    [[nodiscard]] Tetrahedra get_multicolored_tetrahedra(
+    // All multicolored simplices of the chosen complex. For full (weighted)
+    // Delaunay triangulations every multicolored face is carried by a
+    // multicolored tetrahedron, so only generating_tetrahedra is populated;
+    // an alpha complex additionally yields free triangles and free edges.
+    [[nodiscard]] MulticoloredSimplices collect_multicolored_simplices(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii,
@@ -29,32 +33,25 @@ public:
         bool alpha = true
     ) const;
 
-    [[nodiscard]] Tetrahedra get_multicolored_tetrahedra(
+    // Radii-free overload: plain (unweighted) Delaunay complex.
+    [[nodiscard]] MulticoloredSimplices collect_multicolored_simplices(
         const Points& points,
         const ColorLabels& color_labels
-    ) const;
-
-    // All multicolored simplices of the weighted alpha complex:
-    // tetrahedra + free triangles + free edges not covered by tetrahedra.
-    [[nodiscard]] MulticoloredSimplices get_multicolored_simplices_weighted_alpha(
-        const Points& points,
-        const ColorLabels& color_labels,
-        const Radii& radii
     ) const;
 
 private:
-    Tetrahedra get_multicolored_tetrahedra_delaunay(
+    MulticoloredSimplices collect_multicolored_simplices_delaunay(
         const Points& points,
         const ColorLabels& color_labels
     ) const;
 
-    Tetrahedra get_multicolored_tetrahedra_weighted_delaunay(
+    MulticoloredSimplices collect_multicolored_simplices_weighted_delaunay(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii
     ) const;
 
-    Tetrahedra get_multicolored_tetrahedra_weighted_alpha(
+    MulticoloredSimplices collect_multicolored_simplices_weighted_alpha(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii

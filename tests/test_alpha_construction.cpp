@@ -710,8 +710,8 @@ void test_mixed_free_simplices() {
     Radii radii(9, 0.62);
 
     InterfaceGenerator gen;
-    auto mc = gen.get_multicolored_simplices_weighted_alpha(
-        mixed_points, colors_mixed, radii);
+    auto mc = gen.collect_multicolored_simplices(
+        mixed_points, colors_mixed, radii, true, true);
 
     std::cout << "  " << mc.generating_tetrahedra.size() << " tets, "
               << mc.generating_free_triangles.size() << " free triangles, "

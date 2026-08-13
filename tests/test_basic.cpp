@@ -453,8 +453,8 @@ void test_free_simplices_alpha() {
     InterfaceGenerator generator;
 
     try {
-        auto simplices = generator.get_multicolored_simplices_weighted_alpha(
-            points, colors, radii);
+        auto simplices = generator.collect_multicolored_simplices(
+            points, colors, radii, true, true);
 
         // This fixture is deterministic: two multicolored alpha tetrahedra
         // plus one free multicolored edge spanning the gap between clusters.
