@@ -127,14 +127,13 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             int n_points,
             jlcxx::ArrayRef<int> color_labels_arr,
             jlcxx::ArrayRef<double> radii_arr,
-            bool weighted,
             bool alpha,
             bool lower_star
         ) {
             Points points = flat_points_to_cpp(flat_points, n_points);
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
             Radii radii = julia_array_to_vector(radii_arr);
-            return gen.compute_interface_surface(points, color_labels, radii, weighted, alpha, lower_star);
+            return gen.compute_interface_surface(points, color_labels, radii, alpha, lower_star);
         })
         .method("get_multicolored_tetrahedra", [](
             InterfaceGenerator& gen,
@@ -142,14 +141,13 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             int n_points,
             jlcxx::ArrayRef<int> color_labels_arr,
             jlcxx::ArrayRef<double> radii_arr,
-            bool weighted,
             bool alpha
         ) {
             Points points = flat_points_to_cpp(flat_points, n_points);
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
             Radii radii = julia_array_to_vector(radii_arr);
 
-            auto tets = gen.collect_multicolored_simplices(points, color_labels, radii, weighted, alpha).generating_tetrahedra;
+            auto tets = gen.collect_multicolored_simplices(points, color_labels, radii, alpha).generating_tetrahedra;
 
             // Convert to a flat array where each 4 consecutive integers represent one tetrahedron
             std::vector<int> result;

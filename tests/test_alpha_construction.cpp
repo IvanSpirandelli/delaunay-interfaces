@@ -52,7 +52,7 @@ void test_31_alpha_0() {
     Radii radii(4, 0.0);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_31, radii, true, true);
+        tet_points, colors_31, radii, true);
 
     assert(verts.size() == 0);
     assert(filtration.size() == 0);
@@ -66,7 +66,7 @@ void test_31_alpha_051() {
     Radii radii(4, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_31, radii, true, true);
+        tet_points, colors_31, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -89,7 +89,7 @@ void test_31_alpha_058() {
     Radii radii(4, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_31, radii, true, true);
+        tet_points, colors_31, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -112,7 +112,7 @@ void test_31_alpha_062() {
     Radii radii(4, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_31, radii, true, true);
+        tet_points, colors_31, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -121,7 +121,7 @@ void test_31_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_31, radii, true, false);
+        tet_points, colors_31, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -149,7 +149,7 @@ void test_211_alpha_052() {
     Radii radii(4, 0.52);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_211, radii, true, true);
+        tet_points, colors_211, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -172,7 +172,7 @@ void test_211_alpha_058() {
     Radii radii(4, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_211, radii, true, true);
+        tet_points, colors_211, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -195,7 +195,7 @@ void test_211_alpha_062() {
     Radii radii(4, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_211, radii, true, true);
+        tet_points, colors_211, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -204,7 +204,7 @@ void test_211_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_211, radii, true, false);
+        tet_points, colors_211, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -232,7 +232,7 @@ void test_22_alpha_051() {
     Radii radii(4, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_22, radii, true, true);
+        tet_points, colors_22, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -255,7 +255,7 @@ void test_22_alpha_058() {
     Radii radii(4, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_22, radii, true, true);
+        tet_points, colors_22, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -278,7 +278,7 @@ void test_22_alpha_062() {
     Radii radii(4, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_22, radii, true, true);
+        tet_points, colors_22, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -287,7 +287,7 @@ void test_22_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_22, radii, true, false);
+        tet_points, colors_22, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -317,7 +317,7 @@ void test_1111_alpha_0() {
     Radii radii(4, 0.0);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_1111, radii, true, true);
+        tet_points, colors_1111, radii, true);
 
     assert(verts.size() == 0);
     assert(filtration.size() == 0);
@@ -333,7 +333,7 @@ void test_1111_alpha_051() {
     Radii radii(4, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_1111, radii, true, true);
+        tet_points, colors_1111, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -359,7 +359,7 @@ void test_1111_alpha_058() {
     Radii radii(4, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_1111, radii, true, true);
+        tet_points, colors_1111, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -384,7 +384,7 @@ void test_1111_alpha_062() {
     Radii radii(4, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_1111, radii, true, true);
+        tet_points, colors_1111, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -394,7 +394,7 @@ void test_1111_alpha_062() {
 
     // Compare with Delaunay (no alpha filtering)
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        tet_points, colors_1111, radii, true, false);
+        tet_points, colors_1111, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -434,7 +434,7 @@ void test_bipyramid_alpha_051() {
     Radii radii(5, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid, radii, true, true);
+        bipyramid_points, colors_bipyramid, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -457,7 +457,7 @@ void test_bipyramid_alpha_058() {
     Radii radii(5, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid, radii, true, true);
+        bipyramid_points, colors_bipyramid, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -480,7 +480,7 @@ void test_bipyramid_alpha_062() {
     Radii radii(5, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid, radii, true, true);
+        bipyramid_points, colors_bipyramid, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -489,7 +489,7 @@ void test_bipyramid_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid, radii, true, false);
+        bipyramid_points, colors_bipyramid, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -521,7 +521,7 @@ void test_bipyramid22_alpha_051() {
     Radii radii(5, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_22, radii, true, true);
+        bipyramid_points, colors_bipyramid_22, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -544,7 +544,7 @@ void test_bipyramid22_alpha_058() {
     Radii radii(5, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_22, radii, true, true);
+        bipyramid_points, colors_bipyramid_22, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -567,7 +567,7 @@ void test_bipyramid22_alpha_062() {
     Radii radii(5, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_22, radii, true, true);
+        bipyramid_points, colors_bipyramid_22, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -576,7 +576,7 @@ void test_bipyramid22_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_22, radii, true, false);
+        bipyramid_points, colors_bipyramid_22, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -607,7 +607,7 @@ void test_bipyramid11111_alpha_051() {
     Radii radii(5, 0.51);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+        bipyramid_points, colors_bipyramid_11111, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -630,7 +630,7 @@ void test_bipyramid11111_alpha_058() {
     Radii radii(5, 0.58);
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+        bipyramid_points, colors_bipyramid_11111, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -653,7 +653,7 @@ void test_bipyramid11111_alpha_062() {
     Radii radii(5, 0.62);
 
     auto [verts_alpha, filt_alpha, mc_alpha, vai_alpha] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_11111, radii, true, true);
+        bipyramid_points, colors_bipyramid_11111, radii, true);
 
     auto ca = count_filtration(filt_alpha);
 
@@ -662,7 +662,7 @@ void test_bipyramid11111_alpha_062() {
               << ca.total << " simplices\n";
 
     auto [verts_del, filt_del, mc_del, vai_del] = compute_barycentric_subdivision_and_filtration(
-        bipyramid_points, colors_bipyramid_11111, radii, true, false);
+        bipyramid_points, colors_bipyramid_11111, radii, false);
 
     auto cd = count_filtration(filt_del);
 
@@ -711,7 +711,7 @@ void test_mixed_free_simplices() {
 
     InterfaceGenerator gen;
     auto mc = gen.collect_multicolored_simplices(
-        mixed_points, colors_mixed, radii, true, true);
+        mixed_points, colors_mixed, radii, true);
 
     std::cout << "  " << mc.generating_tetrahedra.size() << " tets, "
               << mc.generating_free_triangles.size() << " free triangles, "
@@ -735,7 +735,7 @@ void test_mixed_free_simplices() {
     // Downstream subdivision: 3-1 tet (7v 12e 6t) + 2-1 free triangle (3v 2e)
     // + free edge (1v).
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        mixed_points, colors_mixed, radii, true, true);
+        mixed_points, colors_mixed, radii, true);
 
     auto c = count_filtration(filtration);
 
@@ -867,7 +867,7 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
     }
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        points, colors, radii, true, true);
+        points, colors, radii, true);
 
     auto c = count_filtration(filtration);
 

@@ -133,27 +133,26 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted,
     bool alpha
 ) const {
-    if (!weighted && alpha) {
-        throw std::invalid_argument(
-            "alpha requires weighted=true: the unweighted alpha complex with "
-            "parameter a is the weighted one with uniform radii sqrt(a)");
+    if (radii.empty()) {
+        if (alpha) {
+            throw std::invalid_argument(
+                "alpha requires radii: the unweighted alpha complex with "
+                "parameter a is the weighted one with uniform radii sqrt(a)");
+        }
+        return collect_multicolored_simplices_delaunay(points, color_labels);
     }
-    if (weighted) {
-        return alpha
-            ? collect_multicolored_simplices_weighted_alpha(points, color_labels, radii)
-            : collect_multicolored_simplices_weighted_delaunay(points, color_labels, radii);
-    }
-    return collect_multicolored_simplices_delaunay(points, color_labels);
+    return alpha
+        ? collect_multicolored_simplices_weighted_alpha(points, color_labels, radii)
+        : collect_multicolored_simplices_weighted_delaunay(points, color_labels, radii);
 }
 
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     const Points& points,
     const ColorLabels& color_labels
 ) const {
-    return collect_multicolored_simplices(points, color_labels, {}, false, false);
+    return collect_multicolored_simplices(points, color_labels, {}, false);
 }
 
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighted_alpha(
@@ -211,23 +210,22 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted,
     bool alpha,
     bool lower_star
 ) const {
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
-        points, color_labels, radii, weighted, alpha, lower_star
+        points, color_labels, radii, alpha, lower_star
     );
 
     return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
-                            std::move(vertex_atom_indices), weighted, alpha, lower_star};
+                            std::move(vertex_atom_indices), !radii.empty(), alpha, lower_star};
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const Points& points,
     const ColorLabels& color_labels
 ) const {
-    return compute_interface_surface(points, color_labels, {}, false, false, false);
+    return compute_interface_surface(points, color_labels, {}, false, false);
 }
 
 } // namespace delaunay_interfaces

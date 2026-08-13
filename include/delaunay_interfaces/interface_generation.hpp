@@ -6,11 +6,12 @@ namespace delaunay_interfaces {
 
 class InterfaceGenerator {
 public:
+    // Weightedness is determined by the radii: empty radii build the plain
+    // Delaunay complex, non-empty radii the weighted one.
     [[nodiscard]] InterfaceSurface compute_interface_surface(
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii,
-        bool weighted = true,
         bool alpha = true,
         bool lower_star = false
     ) const;
@@ -29,7 +30,6 @@ public:
         const Points& points,
         const ColorLabels& color_labels,
         const Radii& radii,
-        bool weighted = true,
         bool alpha = true
     ) const;
 
@@ -62,7 +62,6 @@ private:
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted = true,
     bool alpha = true,
     bool lower_star = false
 );
@@ -73,7 +72,6 @@ private:
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted = true,
     bool alpha = true
 );
 

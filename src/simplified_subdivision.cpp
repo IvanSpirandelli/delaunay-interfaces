@@ -106,13 +106,12 @@ SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted,
     bool alpha
 ) {
-    detail::validate_inputs(points, color_labels, radii, weighted);
+    detail::validate_inputs(points, color_labels, radii);
 
     SimplifiedSubdivision subdivision(points, color_labels);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, weighted, alpha);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, alpha);
 
     return SimplifiedSurface{
         subdivision.get_midpoints(),
@@ -122,7 +121,7 @@ SimplifiedSurface compute_simplified_surface(
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
-        weighted,
+        !radii.empty(),
         alpha
     };
 }

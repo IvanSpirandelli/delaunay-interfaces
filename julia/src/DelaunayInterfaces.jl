@@ -109,16 +109,15 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
 end
 
 """
-    InterfaceSurface(points, color_labels[, radii]; weighted=true, alpha=true)
+    InterfaceSurface(points, color_labels[, radii]; alpha=!isempty(radii))
 
 Compute the interface surface from a colored point cloud.
 
 # Arguments
 - `points::Vector{Vector{Float64}}`: Vector of 3D points
 - `color_labels::Vector{Int}`: Color label for each point (at least 2 distinct colors)
-- `radii::Vector{Float64}`: Radius for each point (required if `weighted=true`)
-- `weighted::Bool`: Use weighted Delaunay/alpha complex (default: `true`)
-- `alpha::Bool`: Use alpha complex filtering (default: `true`)
+- `radii::Vector{Float64}`: Radius for each point; non-empty radii select the weighted complex
+- `alpha::Bool`: Use alpha complex filtering (default: `true` iff radii given)
 
 # Returns
 - `InterfaceSurface`: Object containing vertices and filtration data
@@ -138,8 +137,7 @@ function InterfaceSurface(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
-    weighted::Bool=!isempty(radii),  # Default: weighted if radii provided
-    alpha::Bool=!isempty(radii),     # Default: alpha if radii provided
+    alpha::Bool=!isempty(radii),  # Default: alpha if radii provided
     lower_star::Bool=false
 )
     gen = InterfaceGenerator()
@@ -147,7 +145,7 @@ function InterfaceSurface(
     n_points = length(points)
     flat_points = reduce(vcat, points)
     color_labels_i32 = Int32.(color_labels)
-    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, radii, weighted, alpha, lower_star)
+    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, radii, alpha, lower_star)
     return InterfaceSurface(cxx_surface)
 end
 
@@ -188,7 +186,7 @@ function get_vertices_simplices(surface::InterfaceSurface)
 end
 
 """
-    get_multicolored_tetrahedra_wrapper(points, color_labels[, radii]; weighted=true, alpha=true)
+    get_multicolored_tetrahedra_wrapper(points, color_labels[, radii]; alpha=!isempty(radii))
 
 Get all multicolored tetrahedra from the Delaunay/alpha complex.
 
@@ -199,14 +197,13 @@ function get_multicolored_tetrahedra_wrapper(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
-    weighted::Bool=!isempty(radii),
     alpha::Bool=!isempty(radii)
 )
     gen = InterfaceGenerator()
     n_points = length(points)
     flat_points = reduce(vcat, points)
     color_labels_i32 = Int32.(color_labels)
-    flat_result = get_multicolored_tetrahedra(gen, flat_points, n_points, color_labels_i32, radii, weighted, alpha)
+    flat_result = get_multicolored_tetrahedra(gen, flat_points, n_points, color_labels_i32, radii, alpha)
 
     if isempty(flat_result)
         return Matrix{Int}(undef, 0, 4)

@@ -78,7 +78,7 @@ void test_simple_delaunay() {
     InterfaceGenerator generator;
 
     try {
-        auto surface = generator.compute_interface_surface(points, colors, {}, false, false);
+        auto surface = generator.compute_interface_surface(points, colors, {}, false);
         std::cout << "  Found " << surface.vertices.size() << " barycenters\n";
         std::cout << "  Found " << surface.filtration.size() << " filtration simplices\n";
         assert(surface.vertices.size() > 0);
@@ -108,7 +108,7 @@ void test_weighted_alpha() {
     InterfaceGenerator generator;
 
     try {
-        auto surface = generator.compute_interface_surface(points, colors, radii, true, true);
+        auto surface = generator.compute_interface_surface(points, colors, radii, true);
         std::cout << "  Found " << surface.vertices.size() << " barycenters\n";
         std::cout << "  Found " << surface.filtration.size() << " filtration simplices\n";
         assert(surface.weighted == true);
@@ -137,8 +137,8 @@ void test_simple_delaunay_lower_star() {
     InterfaceGenerator generator;
 
     try {
-        auto upper = generator.compute_interface_surface(points, colors, {}, false, false, false);
-        auto lower = generator.compute_interface_surface(points, colors, {}, false, false, true);
+        auto upper = generator.compute_interface_surface(points, colors, {}, false, false);
+        auto lower = generator.compute_interface_surface(points, colors, {}, false, true);
 
         assert(lower.lower_star == true);
         assert(upper.lower_star == false);
@@ -187,8 +187,8 @@ void test_weighted_alpha_lower_star() {
     InterfaceGenerator generator;
 
     try {
-        auto upper = generator.compute_interface_surface(points, colors, radii, true, true, false);
-        auto lower = generator.compute_interface_surface(points, colors, radii, true, true, true);
+        auto upper = generator.compute_interface_surface(points, colors, radii, true, false);
+        auto lower = generator.compute_interface_surface(points, colors, radii, true, true);
 
         assert(lower.lower_star == true);
         assert(lower.weighted == true);
@@ -454,7 +454,7 @@ void test_free_simplices_alpha() {
 
     try {
         auto simplices = generator.collect_multicolored_simplices(
-            points, colors, radii, true, true);
+            points, colors, radii, true);
 
         // This fixture is deterministic: two multicolored alpha tetrahedra
         // plus one free multicolored edge spanning the gap between clusters.

@@ -58,14 +58,13 @@ public:
         const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
         const ColorLabels& color_labels,
         const Radii& radii,
-        std::optional<bool> weighted,
         std::optional<bool> alpha,
         bool lower_star
     ) {
         Points points = numpy_to_points(points_arr);
         auto surface = gen_.compute_interface_surface(
             points, color_labels, radii,
-            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()), lower_star);
+            alpha.value_or(!radii.empty()), lower_star);
         return InterfaceSurfacePy(surface);
     }
 
@@ -73,13 +72,12 @@ public:
         const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
         const ColorLabels& color_labels,
         const Radii& radii,
-        std::optional<bool> weighted,
         std::optional<bool> alpha
     ) {
         Points points = numpy_to_points(points_arr);
         return gen_.collect_multicolored_simplices(
             points, color_labels, radii,
-            weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty())).generating_tetrahedra;
+            alpha.value_or(!radii.empty())).generating_tetrahedra;
     }
 };
 
@@ -114,13 +112,12 @@ SimplifiedSurfacePy compute_simplified_surface_py(
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
     const Radii& radii,
-    std::optional<bool> weighted,
     std::optional<bool> alpha
 ) {
     Points points = numpy_to_points(points_arr);
     auto surface = compute_simplified_surface(
         points, color_labels, radii,
-        weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()));
+        alpha.value_or(!radii.empty()));
     return SimplifiedSurfacePy(surface);
 }
 
@@ -128,14 +125,13 @@ std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtr
     const Eigen::Ref<const Eigen::MatrixXd>& points_arr,
     const ColorLabels& color_labels,
     const Radii& radii,
-    std::optional<bool> weighted,
     std::optional<bool> alpha,
     bool lower_star
 ) {
     Points points = numpy_to_points(points_arr);
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
         points, color_labels, radii,
-        weighted.value_or(!radii.empty()), alpha.value_or(!radii.empty()), lower_star);
+        alpha.value_or(!radii.empty()), lower_star);
     return {points_to_numpy(vertices), filtration};
 }
 
@@ -168,7 +164,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             py::arg("points"),
             py::arg("color_labels"),
             py::arg("radii") = Radii{},
-            py::arg("weighted") = py::none(),
             py::arg("alpha") = py::none(),
             py::arg("lower_star") = false,
             "Compute the interface surface from colored points\n\n"
@@ -179,9 +174,7 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "color_labels : list of int\n"
             "    Color label for each point\n"
             "radii : list of float, optional\n"
-            "    Radius for each point (required if weighted=True)\n"
-            "weighted : bool, optional\n"
-            "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+            "    Radius for each point; non-empty radii select the weighted complex\n"
             "alpha : bool, optional\n"
             "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n"
             "lower_star : bool, default=False\n"
@@ -194,7 +187,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             py::arg("points"),
             py::arg("color_labels"),
             py::arg("radii") = Radii{},
-            py::arg("weighted") = py::none(),
             py::arg("alpha") = py::none(),
             "Get all multicolored tetrahedra from the complex\n\n"
             "Parameters\n"
@@ -204,9 +196,7 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "color_labels : list of int\n"
             "    Color label for each point\n"
             "radii : list of float, optional\n"
-            "    Radius for each point (required if weighted=True)\n"
-            "weighted : bool, optional\n"
-            "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+            "    Radius for each point; non-empty radii select the weighted complex\n"
             "alpha : bool, optional\n"
             "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n\n"
             "Returns\n"
@@ -219,7 +209,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},
-        py::arg("weighted") = py::none(),
         py::arg("alpha") = py::none(),
         py::arg("lower_star") = false,
         "Compute barycentric subdivision and filtration\n\n"
@@ -230,9 +219,7 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "color_labels : list of int\n"
         "    Color label for each point\n"
         "radii : list of float, optional\n"
-        "    Radius for each point (required if weighted=True)\n"
-        "weighted : bool, optional\n"
-        "    Use weighted Delaunay/alpha complex (default: True iff radii given)\n"
+        "    Radius for each point; non-empty radii select the weighted complex\n"
         "alpha : bool, optional\n"
         "    Use alpha complex vs Delaunay complex (default: True iff radii given)\n"
         "lower_star : bool, default=False\n"
@@ -270,7 +257,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         py::arg("points"),
         py::arg("color_labels"),
         py::arg("radii") = Radii{},
-        py::arg("weighted") = py::none(),
         py::arg("alpha") = py::none(),
         "Compute simplified 2-color interface surface\n\n"
         "Each vertex = midpoint of one cross-color atom pair.\n"
@@ -280,7 +266,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
         "points : numpy.ndarray (Nx3)\n"
         "color_labels : list of int (exactly 2 distinct values)\n"
         "radii : list of float, optional\n"
-        "weighted : bool, optional (default: True iff radii given)\n"
         "alpha : bool, optional (default: True iff radii given)\n\n"
         "Returns\n"
         "-------\n"

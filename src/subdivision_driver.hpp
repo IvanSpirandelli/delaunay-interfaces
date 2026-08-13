@@ -11,13 +11,13 @@ namespace delaunay_interfaces::detail {
 inline void validate_inputs(
     const Points& points,
     const ColorLabels& color_labels,
-    const Radii& radii,
-    bool weighted
+    const Radii& radii
 ) {
     if (points.size() != color_labels.size()) {
         throw std::invalid_argument("Each point must have a corresponding color_label");
     }
-    if (weighted && radii.size() != points.size()) {
+    // Non-empty radii select the weighted complex and must cover every point.
+    if (!radii.empty() && radii.size() != points.size()) {
         throw std::invalid_argument("Each point must have an assigned radius for weighted complexes");
     }
 }
@@ -28,12 +28,11 @@ MulticoloredSimplices run_subdivision(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted,
     bool alpha
 ) {
     InterfaceGenerator generator;
     MulticoloredSimplices mc_simplices = generator.collect_multicolored_simplices(
-        points, color_labels, radii, weighted, alpha);
+        points, color_labels, radii, alpha);
 
     for (const auto& tet : mc_simplices.generating_tetrahedra) {
         subdivision.process_tetrahedron(tet);

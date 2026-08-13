@@ -265,14 +265,13 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool weighted,
     bool alpha,
     bool lower_star
 ) {
-    detail::validate_inputs(points, color_labels, radii, weighted);
+    detail::validate_inputs(points, color_labels, radii);
 
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, weighted, alpha);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, alpha);
 
     return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};
