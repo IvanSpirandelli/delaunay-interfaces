@@ -8,8 +8,6 @@
 #include <CGAL/Regular_triangulation_vertex_base_3.h>
 #include <CGAL/Regular_triangulation_cell_base_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
-#include <set>
-#include <algorithm>
 #include <stdexcept>
 
 namespace delaunay_interfaces {
@@ -33,9 +31,6 @@ using AsRt = CGAL::Regular_triangulation_3<Kernel, AsTds>;
 using WeightedAlphaShape = CGAL::Alpha_shape_3<AsRt>;
 using IndexedWeightedPoint = std::pair<WeightedPoint, int>;
 
-using EdgeKey = std::array<int, 2>;
-using TriangleKey = std::array<int, 3>;
-
 static bool is_multicolored_set(const std::vector<int>& indices, const ColorLabels& color_labels) {
     if (indices.size() < 2) return false;
     int first_color = color_labels[indices[0]];
@@ -50,10 +45,6 @@ static bool is_multicolored_tet(const Tetrahedron& tet, const ColorLabels& color
     return color_labels[tet[1]] != first_color
         || color_labels[tet[2]] != first_color
         || color_labels[tet[3]] != first_color;
-}
-
-static EdgeKey make_edge_key(int a, int b) {
-    return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
 }
 
 static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
@@ -199,30 +190,15 @@ MulticoloredSimplices InterfaceGenerator::get_multicolored_simplices_weighted_al
     MulticoloredSimplices result;
     result.generating_tetrahedra = collect_multicolored_alpha_tetrahedra(as, color_labels);
 
-    // Faces already accounted for by a generating tetrahedron must not be
-    // re-emitted as free simplices below.
-    std::set<TriangleKey> covered_tris;
-    std::set<EdgeKey> covered_edges;
-    for (const auto& tet : result.generating_tetrahedra) {
-        for (int skip = 0; skip < 4; ++skip) {
-            TriangleKey tri;
-            int k = 0;
-            for (int i = 0; i < 4; ++i) {
-                if (i != skip) tri[k++] = tet[i];
-            }
-            std::sort(tri.begin(), tri.end());
-            covered_tris.insert(tri);
-        }
-        for (int i = 0; i < 4; ++i) {
-            for (int j = i + 1; j < 4; ++j) {
-                covered_edges.insert(make_edge_key(tet[i], tet[j]));
-            }
-        }
-    }
+    // Free simplices are exactly the SINGULAR ones: in the alpha complex but
+    // not a face of any higher-dimensional simplex of the complex. (A
+    // multicolored face of an in-complex simplex is always covered by a
+    // collected multicolored simplex, since any simplex containing a
+    // multicolored face is itself multicolored.)
 
-    // Free multicolored triangles: alpha facets not covered by any tetrahedron.
+    // Free multicolored triangles.
     for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
-        if (as.classify(*fit) == WeightedAlphaShape::EXTERIOR) continue;
+        if (as.classify(*fit) != WeightedAlphaShape::SINGULAR) continue;
 
         auto cell = fit->first;
         int face_idx = fit->second;
@@ -232,32 +208,22 @@ MulticoloredSimplices InterfaceGenerator::get_multicolored_simplices_weighted_al
             tri_indices.push_back(cell->vertex(i)->info());
         }
 
-        if (!is_multicolored_set(tri_indices, color_labels)) continue;
-
-        TriangleKey sorted_tri{tri_indices[0], tri_indices[1], tri_indices[2]};
-        std::sort(sorted_tri.begin(), sorted_tri.end());
-        if (covered_tris.count(sorted_tri)) continue;
-
-        result.generating_free_triangles.push_back(tri_indices);
-        for (int i = 0; i < 3; ++i) {
-            for (int j = i + 1; j < 3; ++j) {
-                covered_edges.insert(make_edge_key(tri_indices[i], tri_indices[j]));
-            }
+        if (is_multicolored_set(tri_indices, color_labels)) {
+            result.generating_free_triangles.push_back(tri_indices);
         }
     }
 
-    // Free multicolored edges: alpha edges not covered by any tetrahedron or free triangle.
+    // Free multicolored edges.
     for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
-        if (as.classify(*eit) == WeightedAlphaShape::EXTERIOR) continue;
+        if (as.classify(*eit) != WeightedAlphaShape::SINGULAR) continue;
 
         auto cell = eit->first;
         int idx0 = cell->vertex(eit->second)->info();
         int idx1 = cell->vertex(eit->third)->info();
 
-        if (color_labels[idx0] == color_labels[idx1]) continue;
-        if (covered_edges.count(make_edge_key(idx0, idx1))) continue;
-
-        result.generating_free_edges.push_back({idx0, idx1});
+        if (color_labels[idx0] != color_labels[idx1]) {
+            result.generating_free_edges.push_back({idx0, idx1});
+        }
     }
 
     return result;

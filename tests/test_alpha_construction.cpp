@@ -682,6 +682,76 @@ void test_bipyramid11111_alpha_062() {
     std::cout << "  PASS\n";
 }
 
+// ============== Mixed Tet + Free Triangle + Free Edge ===============
+// Three clusters far apart in one point cloud, radius 0.62 everywhere:
+// - indices 0-3: unit regular tet, colors 3-1 → in complex (circumradius² = 3/8)
+// - indices 4-6: unit equilateral triangle, colors 2-1, no 4th point nearby
+//   → free triangle (circumradius² = 1/3)
+// - indices 7-8: point pair at distance 1, colors 1-1 → free edge (1/4)
+// Cross-cluster simplices are EXTERIOR (clusters ~9 units apart).
+
+static const Points mixed_points = {
+    { 0.0,  0.0,       1.0 / std::sqrt(3.0)},
+    { 0.5,  0.0,      -1.0 / (2.0 * std::sqrt(3.0))},
+    {-0.5,  0.0,      -1.0 / (2.0 * std::sqrt(3.0))},
+    { 0.0,  std::sqrt(2.0 / 3.0), 0.0},
+    {10.0,  0.0,  0.0},
+    {11.0,  0.0,  0.0},
+    {10.5,  std::sqrt(3.0) / 2.0, 0.0},
+    {20.0,  0.0,  0.0},
+    {21.0,  0.0,  0.0}
+};
+
+static const ColorLabels colors_mixed = {1, 1, 1, 2, 1, 1, 2, 1, 2};
+
+void test_mixed_free_simplices() {
+    std::cout << "Test: mixed tet + free triangle + free edge\n";
+
+    Radii radii(9, 0.62);
+
+    InterfaceGenerator gen;
+    auto mc = gen.get_multicolored_simplices_weighted_alpha(
+        mixed_points, colors_mixed, radii);
+
+    std::cout << "  " << mc.generating_tetrahedra.size() << " tets, "
+              << mc.generating_free_triangles.size() << " free triangles, "
+              << mc.generating_free_edges.size() << " free edges\n";
+
+    assert(mc.generating_tetrahedra.size() == 1);
+    Tetrahedron tet = mc.generating_tetrahedra[0];
+    std::sort(tet.begin(), tet.end());
+    assert((tet == Tetrahedron{0, 1, 2, 3}));
+
+    assert(mc.generating_free_triangles.size() == 1);
+    std::vector<int> tri = mc.generating_free_triangles[0];
+    std::sort(tri.begin(), tri.end());
+    assert((tri == std::vector<int>{4, 5, 6}));
+
+    assert(mc.generating_free_edges.size() == 1);
+    std::vector<int> edge = mc.generating_free_edges[0];
+    std::sort(edge.begin(), edge.end());
+    assert((edge == std::vector<int>{7, 8}));
+
+    // Downstream subdivision: 3-1 tet (7v 12e 6t) + 2-1 free triangle (3v 2e)
+    // + free edge (1v).
+    auto [verts, filtration, mc_simplices, vai] = get_barycentric_subdivision_and_filtration(
+        mixed_points, colors_mixed, radii, true, true);
+
+    auto c = count_filtration(filtration);
+
+    std::cout << "  " << verts.size() << " vertices, "
+              << c.vertices << "v " << c.edges << "e " << c.triangles << "t = "
+              << c.total << " simplices\n";
+
+    assert(verts.size() == 11);
+    assert(c.vertices == 11);
+    assert(c.edges == 14);
+    assert(c.triangles == 6);
+    assert(c.total == 31);
+
+    std::cout << "  PASS\n";
+}
+
 // ============= Random Point Cloud Consistency Invariants =============
 
 static std::string classify_tet_split(const Tetrahedron& tet, const ColorLabels& colors) {
@@ -899,6 +969,9 @@ int main() {
         test_bipyramid11111_alpha_051();
         test_bipyramid11111_alpha_058();
         test_bipyramid11111_alpha_062();
+
+        std::cout << "\n--- Mixed Free Simplices ---\n";
+        test_mixed_free_simplices();
 
         std::cout << "\n--- Random Point Cloud (100 deterministic seeds) ---\n";
         // Fixed generator seed so every run tests the same 100 point clouds;
