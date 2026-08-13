@@ -47,7 +47,7 @@ private:
     std::map<std::vector<int>, std::pair<int32_t, double>> vertex_map_;
     int32_t next_vertex_id_ = 0;
 
-    std::set<SimplexWithFiltration> filtration_set_;
+    std::set<FiltrationEntry> filtration_set_;
 };
 
 } // namespace delaunay_interfaces

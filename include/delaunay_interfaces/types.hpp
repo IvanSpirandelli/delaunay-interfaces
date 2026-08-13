@@ -13,19 +13,24 @@ using Points = std::vector<Point3D>;
 using ColorLabels = std::vector<int>;
 using Radii = std::vector<double>;
 
-// Simplices of the input complex (Delaunay / alpha), indexing input atoms.
+// Simplex naming convention: simplices of the input complex (Delaunay /
+// alpha) index input atoms as int and are named Tetrahedron / FreeTriangle /
+// FreeEdge; simplices of the generated interface index the surface's own
+// vertices as int32_t and are prefixed Surface.
+
+// Input complex.
 using Tetrahedron = std::array<int, 4>;
 using Tetrahedra = std::vector<Tetrahedron>;
 using FreeTriangle = std::array<int, 3>;
 using FreeEdge = std::array<int, 2>;
 using Partition = std::vector<std::vector<int>>; // atom indices grouped by color
 
-// Simplices of the generated interface, indexing its own (barycenter or
-// midpoint) vertices. Filtration simplices have mixed dimension, hence a
-// vector; the simplified-surface faces have fixed dimension.
-using Simplex = std::vector<int32_t>;
-using SimplexWithFiltration = std::tuple<Simplex, double>;
-using Filtration = std::vector<SimplexWithFiltration>;
+// Generated interface. Vertices are barycenters (barycentric construction)
+// or midpoints (simplified construction). SurfaceSimplex has mixed
+// dimension, hence a vector; the fixed-dimension faces are arrays.
+using SurfaceSimplex = std::vector<int32_t>;
+using FiltrationEntry = std::tuple<SurfaceSimplex, double>;
+using Filtration = std::vector<FiltrationEntry>;
 using SurfaceTriangle = std::array<int32_t, 3>;
 using SurfaceQuad = std::array<int32_t, 4>;
 using SurfaceEdge = std::array<int32_t, 2>;

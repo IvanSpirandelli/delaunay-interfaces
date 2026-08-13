@@ -148,7 +148,7 @@ void test_simple_delaunay_lower_star() {
         // Match simplices by key: vertex values are identical, while for
         // edges and triangles the lower-star value (max over faces) must
         // dominate the upper-star value (min over faces).
-        std::map<Simplex, double> upper_by_simplex;
+        std::map<SurfaceSimplex, double> upper_by_simplex;
         for (const auto& [s, v] : upper.filtration) {
             upper_by_simplex[s] = v;
         }
@@ -197,7 +197,7 @@ void test_weighted_alpha_lower_star() {
         assert(lower.filtration.size() == upper.filtration.size());
 
         // Same property as the Delaunay lower-star test, matched by key.
-        std::map<Simplex, double> upper_by_simplex;
+        std::map<SurfaceSimplex, double> upper_by_simplex;
         for (const auto& [s, v] : upper.filtration) {
             upper_by_simplex[s] = v;
         }

@@ -42,14 +42,17 @@ static bool is_multicolored(const VertexIndices& indices, const ColorLabels& col
 }
 
 // Multicolored finite cells of any CGAL triangulation carrying the input
-// point index as vertex info.
-template <class Triangulation>
+// point index as vertex info; keep_cell filters cells (e.g. alpha EXTERIOR).
+template <class Triangulation, class KeepCell>
 static Tetrahedra collect_multicolored_tetrahedra(
     const Triangulation& t,
-    const ColorLabels& color_labels
+    const ColorLabels& color_labels,
+    KeepCell keep_cell
 ) {
     Tetrahedra result;
     for (auto cit = t.finite_cells_begin(); cit != t.finite_cells_end(); ++cit) {
+        if (!keep_cell(cit)) continue;
+
         Tetrahedron tet;
         for (int i = 0; i < 4; ++i) {
             tet[i] = cit->vertex(i)->info();
@@ -59,6 +62,14 @@ static Tetrahedra collect_multicolored_tetrahedra(
         }
     }
     return result;
+}
+
+template <class Triangulation>
+static Tetrahedra collect_multicolored_tetrahedra(
+    const Triangulation& t,
+    const ColorLabels& color_labels
+) {
+    return collect_multicolored_tetrahedra(t, color_labels, [](const auto&) { return true; });
 }
 
 static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
@@ -76,26 +87,6 @@ static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
         );
     }
     return wpoints;
-}
-
-// Tetrahedra of the alpha shape (non-EXTERIOR cells) whose vertices span >= 2 colors.
-static Tetrahedra collect_multicolored_alpha_tetrahedra(
-    const WeightedAlphaShape& as,
-    const ColorLabels& color_labels
-) {
-    Tetrahedra result;
-    for (auto cit = as.finite_cells_begin(); cit != as.finite_cells_end(); ++cit) {
-        if (as.classify(cit) == WeightedAlphaShape::EXTERIOR) continue;
-
-        Tetrahedron tet;
-        for (int i = 0; i < 4; ++i) {
-            tet[i] = cit->vertex(i)->info();
-        }
-        if (is_multicolored(tet, color_labels)) {
-            result.push_back(tet);
-        }
-    }
-    return result;
 }
 
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delaunay(
@@ -169,7 +160,8 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
 
     MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_alpha_tetrahedra(as, color_labels);
+    result.generating_tetrahedra = collect_multicolored_tetrahedra(as, color_labels,
+        [&as](const auto& cit) { return as.classify(cit) != WeightedAlphaShape::EXTERIOR; });
 
     // Free simplices are exactly the SINGULAR ones: in the alpha complex but
     // not a face of any higher-dimensional simplex of the complex. (A

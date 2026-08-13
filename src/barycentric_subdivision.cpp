@@ -211,7 +211,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
             if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
-                Simplex edge = {vertices[i].first, vertices[j].first};
+                SurfaceSimplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
                 filtration_set_.insert({edge, star_value(vertices[i].second, vertices[j].second)});
             }
@@ -219,7 +219,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     }
 
     for (const auto& chain : enumerate_maximal_chains(faces)) {
-        Simplex simplex;
+        SurfaceSimplex simplex;
         std::vector<double> vals;
         for (size_t idx : chain) {
             simplex.push_back(vertices[idx].first);
