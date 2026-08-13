@@ -41,8 +41,11 @@ static bool is_multicolored(const VertexIndices& indices, const ColorLabels& col
     return false;
 }
 
-// Multicolored finite cells of any CGAL triangulation carrying the input
-// point index as vertex info; keep_cell filters cells (e.g. alpha EXTERIOR).
+// Tetrahedra of the complex whose vertices span >= 2 colors. keep_cell says
+// which finite cells belong to the complex: all of them for a (weighted)
+// Delaunay triangulation; for an alpha shape only cells not classified
+// EXTERIOR, CGAL's label for simplices of the underlying triangulation that
+// are not part of the alpha complex.
 template <class Triangulation, class KeepCell>
 static Tetrahedra collect_multicolored_tetrahedra(
     const Triangulation& t,
@@ -134,7 +137,9 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     bool alpha
 ) const {
     if (!weighted && alpha) {
-        throw std::invalid_argument("alpha complexes require weighted=true (unweighted alpha is not implemented)");
+        throw std::invalid_argument(
+            "alpha requires weighted=true: the unweighted alpha complex with "
+            "parameter a is the weighted one with uniform radii sqrt(a)");
     }
     if (weighted) {
         return alpha
