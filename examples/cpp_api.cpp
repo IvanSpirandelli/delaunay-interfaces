@@ -31,7 +31,7 @@ int main() {
     std::cout << "------------------------------------\n";
     {
         InterfaceGenerator generator;
-        auto surface = generator.compute_interface_surface(points, colors, {}, false, false);
+        auto surface = generator.compute_interface_surface(points, colors, Radii{}, false, false);
 
         std::cout << "  Barycenters: " << surface.vertices.size() << "\n";
         std::cout << "  Filtration simplices: " << surface.filtration.size() << "\n\n";
