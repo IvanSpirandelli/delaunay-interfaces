@@ -190,22 +190,26 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
             if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
-                SurfaceSimplex edge = {vertices[i].first, vertices[j].first};
-                std::sort(edge.begin(), edge.end());
-                filtration_.emplace_back(std::move(edge), star_value(vertices[i].second, vertices[j].second));
+                int32_t a = vertices[i].first;
+                int32_t b = vertices[j].first;
+                if (a > b) std::swap(a, b);
+                dim2_.push_back({star_value(vertices[i].second, vertices[j].second), {a, b}});
             }
         }
     }
 
+    // Chains always have exactly 3 elements: one per distinct atom-set size,
+    // and the sizes lie in {2, 3, 4} (>= 2 atoms per face, <= 4 in total).
     for (const auto& chain : enumerate_maximal_chains(faces)) {
-        SurfaceSimplex simplex;
-        std::vector<double> vals;
-        for (size_t idx : chain) {
-            simplex.push_back(vertices[idx].first);
-            vals.push_back(vertices[idx].second);
-        }
-        std::sort(simplex.begin(), simplex.end());
-        filtration_.emplace_back(std::move(simplex), star_value(vals));
+        int32_t ids[3] = {
+            vertices[chain[0]].first, vertices[chain[1]].first, vertices[chain[2]].first};
+        double value = star_value(
+            star_value(vertices[chain[0]].second, vertices[chain[1]].second),
+            vertices[chain[2]].second);
+        if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
+        if (ids[1] > ids[2]) std::swap(ids[1], ids[2]);
+        if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
+        dim3_.push_back({value, {ids[0], ids[1], ids[2]}});
     }
 }
 
@@ -225,34 +229,69 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
     return result;
 }
 
-// Sort by (dimension, value) with the simplex itself as a total-order
-// tiebreak, making the output deterministic and equal entries adjacent
-// so unique can drop the duplicates from shared faces.
+// Sort each bucket by (value, simplex) — a total order, making the output
+// deterministic and equal entries adjacent so unique can drop the duplicates
+// from shared faces — then materialize the public Filtration once as
+// dim1|dim2|dim3, which reproduces the global (dimension, value, simplex)
+// order of the former single-vector sort exactly.
 void BarycentricSubdivision::finalize_filtration() {
+    if (finalized_) return;
+    finalized_ = true;
+
     // Vertex singletons are emitted here, once, instead of per processed
     // simplex: every map entry was created for some simplex that would have
     // pushed its singleton, so the entry set (and hence the sorted, deduped
-    // output) is unchanged.
-    if (!singletons_emitted_) {
-        filtration_.reserve(filtration_.size() + vertex_map_.size());
-        for (const auto& [key, id_val] : vertex_map_) {
-            (void)key;
-            filtration_.emplace_back(SurfaceSimplex{id_val.first}, id_val.second);
-        }
-        singletons_emitted_ = true;
+    // output) is unchanged. Duplicate-free by construction, so no unique.
+    dim1_.reserve(vertex_map_.size());
+    for (const auto& [key, id_val] : vertex_map_) {
+        (void)key;
+        dim1_.push_back({id_val.second, id_val.first});
     }
-    std::sort(filtration_.begin(), filtration_.end(),
-        [](const auto& a, const auto& b) {
-            if (std::get<0>(a).size() != std::get<0>(b).size()) {
-                return std::get<0>(a).size() < std::get<0>(b).size();
-            }
-            if (std::get<1>(a) != std::get<1>(b)) {
-                return std::get<1>(a) < std::get<1>(b);
-            }
-            return std::get<0>(a) < std::get<0>(b);
-        }
-    );
-    filtration_.erase(std::unique(filtration_.begin(), filtration_.end()), filtration_.end());
+    std::sort(dim1_.begin(), dim1_.end(),
+        [](const Dim1Entry& a, const Dim1Entry& b) {
+            if (a.value != b.value) return a.value < b.value;
+            return a.v < b.v;
+        });
+
+    std::sort(dim2_.begin(), dim2_.end(),
+        [](const Dim2Entry& a, const Dim2Entry& b) {
+            if (a.value != b.value) return a.value < b.value;
+            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+            return a.v[1] < b.v[1];
+        });
+    dim2_.erase(std::unique(dim2_.begin(), dim2_.end(),
+        [](const Dim2Entry& a, const Dim2Entry& b) {
+            return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
+        }), dim2_.end());
+
+    std::sort(dim3_.begin(), dim3_.end(),
+        [](const Dim3Entry& a, const Dim3Entry& b) {
+            if (a.value != b.value) return a.value < b.value;
+            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+            if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
+            return a.v[2] < b.v[2];
+        });
+    dim3_.erase(std::unique(dim3_.begin(), dim3_.end(),
+        [](const Dim3Entry& a, const Dim3Entry& b) {
+            return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1]
+                && a.v[2] == b.v[2];
+        }), dim3_.end());
+
+    filtration_.reserve(dim1_.size() + dim2_.size() + dim3_.size());
+    for (const auto& e : dim1_) {
+        filtration_.emplace_back(SurfaceSimplex{e.v}, e.value);
+    }
+    for (const auto& e : dim2_) {
+        filtration_.emplace_back(SurfaceSimplex{e.v[0], e.v[1]}, e.value);
+    }
+    for (const auto& e : dim3_) {
+        filtration_.emplace_back(SurfaceSimplex{e.v[0], e.v[1], e.v[2]}, e.value);
+    }
+
+    // The buckets are spent; release their memory.
+    dim1_ = {};
+    dim2_ = {};
+    dim3_ = {};
 }
 
 Filtration BarycentricSubdivision::get_filtration() {

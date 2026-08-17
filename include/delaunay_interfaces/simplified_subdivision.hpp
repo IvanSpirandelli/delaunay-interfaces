@@ -18,7 +18,7 @@ public:
 
     // Capacity hint from the shared subdivision driver; the counts it passes
     // are the barycentric construction's, so this is a no-op here.
-    void reserve(size_t /*vertices*/, size_t /*entries*/) {}
+    void reserve(size_t /*vertices*/, size_t /*edges*/, size_t /*chains*/) {}
 
     [[nodiscard]] const Points& get_midpoints() const { return midpoints_; }
     [[nodiscard]] const std::vector<SurfaceTriangle>& get_triangles() const { return triangles_; }
