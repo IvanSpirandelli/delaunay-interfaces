@@ -1,7 +1,9 @@
 #pragma once
 
 #include "types.hpp"
-#include <map>
+#include <array>
+#include <cstdint>
+#include <unordered_map>
 
 namespace delaunay_interfaces {
 
@@ -51,8 +53,25 @@ private:
     bool lower_star_;
     Points barycenters_;
 
-    // Map from sorted atom sets to (vertex_id, filtration_value)
-    std::map<std::vector<int>, std::pair<int32_t, double>> vertex_map_;
+    // Sorted atom set packed into a fixed-size key, padded with -1. Simplices
+    // have at most 4 vertices (see process_simplex), so atom sets fit.
+    using AtomKey = std::array<int, 4>;
+    struct AtomKeyHash {
+        size_t operator()(const AtomKey& k) const {
+            uint64_t h = 0;
+            for (int a : k) {
+                // splitmix64 round per element
+                uint64_t x = h ^ (static_cast<uint64_t>(static_cast<uint32_t>(a)) + 0x9e3779b97f4a7c15ULL);
+                x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+                x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+                h = x ^ (x >> 31);
+            }
+            return static_cast<size_t>(h);
+        }
+    };
+
+    // Map from packed sorted atom sets to (vertex_id, filtration_value)
+    std::unordered_map<AtomKey, std::pair<int32_t, double>, AtomKeyHash> vertex_map_;
     int32_t next_vertex_id_ = 0;
 
     // May hold duplicates from shared faces of adjacent tetrahedra; duplicate

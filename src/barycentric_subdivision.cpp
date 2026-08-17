@@ -3,6 +3,7 @@
 #include "subdivision_driver.hpp"
 #include <algorithm>
 #include <bitset>
+#include <stdexcept>
 
 namespace delaunay_interfaces {
 
@@ -135,8 +136,11 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
     const Partition& partition,
     const std::vector<int>& atoms
 ) {
-    auto it = vertex_map_.lower_bound(atoms);
-    if (it != vertex_map_.end() && it->first == atoms) {
+    AtomKey key;
+    key.fill(-1);
+    std::copy(atoms.begin(), atoms.end(), key.begin());
+    auto it = vertex_map_.find(key);
+    if (it != vertex_map_.end()) {
         return VertexInfo{it->second.first, it->second.second};
     }
 
@@ -161,11 +165,15 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
     barycenters_.push_back(centroid / static_cast<double>(k));
 
     int32_t id = next_vertex_id_++;
-    vertex_map_.emplace_hint(it, atoms, std::make_pair(id, value));
+    vertex_map_.emplace(key, std::make_pair(id, value));
     return VertexInfo{id, value};
 }
 
 void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
+    if (simplex_vertices.size() > 4) {
+        throw std::invalid_argument(
+            "process_simplex supports at most 4 vertices (edge, triangle, or tetrahedron)");
+    }
     auto partition = compute_chromatic_partition(simplex_vertices, color_labels_);
     if (partition.size() < 2) return;
 
@@ -212,7 +220,11 @@ void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
 std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() const {
     std::vector<std::vector<int>> result(next_vertex_id_);
     for (const auto& [key, id_val] : vertex_map_) {
-        result[id_val.first] = key;
+        auto& atoms = result[id_val.first];
+        for (int a : key) {
+            if (a < 0) break;
+            atoms.push_back(a);
+        }
     }
     return result;
 }
