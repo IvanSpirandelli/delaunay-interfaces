@@ -59,7 +59,7 @@ function main()
 
     triangles = get_triangles(surface)
     edges = get_edges(surface)
-    vertex_simplices = get_vertices_simplices(surface)
+    vertex_simplices = get_vertex_simplices(surface)
 
     println("  Triangles (2-simplices): ", length(triangles))
     println("  Edges (1-simplices): ", length(edges))
@@ -101,7 +101,7 @@ function main()
     println("Example 4: Get multicolored tetrahedra")
     println("-" ^ 50)
 
-    mc_tets = get_multicolored_tetrahedra_wrapper(points, colors)
+    mc_tets = get_multicolored_tetrahedra(points, colors)
 
     println("  Number of multicolored tetrahedra: ", size(mc_tets, 1))
     if size(mc_tets, 1) > 0

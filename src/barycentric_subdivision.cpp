@@ -67,8 +67,9 @@ bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
 }
 
 // Barycenter positions per combination: the centroid of the barycenters of
-// the parts of the combination's sub-partition. For 2-color partitions this
-// equals the flat average of the original points; for 3+ colors it differs.
+// the parts of the combination's sub-partition. This equals the flat average
+// of the original points only when all chosen parts have equal size (e.g.
+// 1-1, 2-2); for unequal part sizes (2-1, 3-1, ...) it differs.
 std::vector<Point3D> face_barycenters(
     const std::vector<MulticoloredFace>& faces,
     const Points& points
@@ -186,7 +187,7 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
 }
 
 void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
-    auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
+    auto partition = compute_chromatic_partition(simplex_vertices, color_labels_);
     if (partition.size() < 2) return;
 
     auto faces = enumerate_multicolored_faces(partition);
@@ -234,16 +235,16 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     }
 }
 
+void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
+    process_simplex({tet.begin(), tet.end()});
+}
+
 std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() const {
     std::vector<std::vector<int>> result(next_vertex_id_);
     for (const auto& [key, id_val] : vertex_map_) {
         result[id_val.first] = key;
     }
     return result;
-}
-
-void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
-    process_simplex({tet.begin(), tet.end()});
 }
 
 Filtration BarycentricSubdivision::get_filtration() const {
@@ -265,13 +266,14 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool alpha,
+    std::optional<bool> alpha,
     bool lower_star
 ) {
     detail::validate_inputs(points, color_labels, radii);
 
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, alpha);
+    auto mc_simplices = detail::run_subdivision(
+        subdivision, points, color_labels, radii, alpha.value_or(!radii.empty()));
 
     return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};
@@ -281,13 +283,12 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     const Points& points,
     const ColorLabels& color_labels,
     double radius,
-    bool alpha,
     bool lower_star
 ) {
     detail::validate_inputs(points, color_labels, Radii{});
 
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius, alpha);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius);
 
     return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};

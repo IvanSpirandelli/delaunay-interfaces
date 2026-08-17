@@ -25,6 +25,10 @@ The interface construction is written in C++. Bindings for Julia and Python are 
 ## Quick Start: Running the Examples
 
 The easiest way to explore the library is through the Jupyter notebooks in `examples/`.
+Standalone script examples for each language live there too: `cpp_api.cpp` (built as the
+`cpp_api` executable), `python_api.py`, and `julia_api.jl`. The notebook
+`julia_alpha_to_interface_illustration.ipynb` walks through the alpha-complex-to-interface
+construction step by step.
 
 ### Prerequisites
 
@@ -87,6 +91,7 @@ make -j4
 | `BUILD_PYTHON_BINDINGS` | ON | Build Python module |
 | `BUILD_JULIA_BINDINGS` | ON | Build Julia wrapper (requires CxxWrap) |
 | `BUILD_TESTS` | ON | Build test suite |
+| `BUILD_EXAMPLES` | ON | Build the C++ example (`cpp_api`) |
 
 ### Python Notebook
 
@@ -110,7 +115,14 @@ jupyter notebook examples/python_api_and_visualization.ipynb
 
 ### Julia Notebook
 
-Start Jupyter and open the notebook:
+The Julia notebooks activate the `julia/` project environment; install its dependencies once with:
+```julia
+using Pkg
+Pkg.activate("path/to/delaunay-interfaces/julia")
+Pkg.instantiate()
+```
+
+Then start Jupyter and open the notebook:
 ```bash
 jupyter notebook examples/julia_api_and_visualization.ipynb
 ```

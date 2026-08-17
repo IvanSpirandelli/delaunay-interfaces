@@ -99,6 +99,54 @@ static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
     return wpoints;
 }
 
+// Multicolored simplices of an alpha complex (weighted or unweighted).
+// Free simplices are exactly the SINGULAR ones: in the alpha complex but
+// not a face of any higher-dimensional simplex of the complex. (A
+// multicolored face of an in-complex simplex is always covered by a
+// collected multicolored simplex, since any simplex containing a
+// multicolored face is itself multicolored.)
+template <class AlphaShape>
+static MulticoloredSimplices collect_from_alpha_shape(
+    const AlphaShape& as,
+    const ColorLabels& color_labels
+) {
+    MulticoloredSimplices result;
+    result.tetrahedra = collect_multicolored_tetrahedra(as, color_labels,
+        [&as](const auto& cit) { return as.classify(cit) != AlphaShape::EXTERIOR; });
+
+    // Free multicolored triangles.
+    for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
+        if (as.classify(*fit) != AlphaShape::SINGULAR) continue;
+
+        auto cell = fit->first;
+        int face_idx = fit->second;
+        FreeTriangle tri;
+        int k = 0;
+        for (int i = 0; i < 4; ++i) {
+            if (i == face_idx) continue;
+            tri[k++] = cell->vertex(i)->info();
+        }
+
+        if (is_multicolored(tri, color_labels)) {
+            result.free_triangles.push_back(tri);
+        }
+    }
+
+    // Free multicolored edges.
+    for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
+        if (as.classify(*eit) != AlphaShape::SINGULAR) continue;
+
+        auto cell = eit->first;
+        FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
+
+        if (is_multicolored(edge, color_labels)) {
+            result.free_edges.push_back(edge);
+        }
+    }
+
+    return result;
+}
+
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delaunay(
     const Points& points,
     const ColorLabels& color_labels
@@ -111,7 +159,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delauna
     }
 
     MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_tetrahedra(dt, color_labels);
+    result.tetrahedra = collect_multicolored_tetrahedra(dt, color_labels);
     return result;
 }
 
@@ -132,81 +180,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     }
 
     MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_tetrahedra(rt, color_labels);
-    return result;
-}
-
-MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
-    const Points& points,
-    const ColorLabels& color_labels,
-    const Radii& radii,
-    bool alpha
-) const {
-    if (radii.empty()) {
-        if (alpha) {
-            throw std::invalid_argument(
-                "alpha requires radii: pass per-point radii for the weighted "
-                "alpha complex or a single radius for the uniform one");
-        }
-        return collect_multicolored_simplices_delaunay(points, color_labels);
-    }
-    return alpha
-        ? collect_multicolored_simplices_weighted_alpha(points, color_labels, radii)
-        : collect_multicolored_simplices_weighted_delaunay(points, color_labels, radii);
-}
-
-MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
-    const Points& points,
-    const ColorLabels& color_labels
-) const {
-    return collect_multicolored_simplices(points, color_labels, Radii{}, false);
-}
-
-// Multicolored simplices of an alpha complex (weighted or unweighted).
-// Free simplices are exactly the SINGULAR ones: in the alpha complex but
-// not a face of any higher-dimensional simplex of the complex. (A
-// multicolored face of an in-complex simplex is always covered by a
-// collected multicolored simplex, since any simplex containing a
-// multicolored face is itself multicolored.)
-template <class AlphaShape>
-static MulticoloredSimplices collect_from_alpha_shape(
-    const AlphaShape& as,
-    const ColorLabels& color_labels
-) {
-    MulticoloredSimplices result;
-    result.generating_tetrahedra = collect_multicolored_tetrahedra(as, color_labels,
-        [&as](const auto& cit) { return as.classify(cit) != AlphaShape::EXTERIOR; });
-
-    // Free multicolored triangles.
-    for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
-        if (as.classify(*fit) != AlphaShape::SINGULAR) continue;
-
-        auto cell = fit->first;
-        int face_idx = fit->second;
-        FreeTriangle tri;
-        int k = 0;
-        for (int i = 0; i < 4; ++i) {
-            if (i == face_idx) continue;
-            tri[k++] = cell->vertex(i)->info();
-        }
-
-        if (is_multicolored(tri, color_labels)) {
-            result.generating_free_triangles.push_back(tri);
-        }
-    }
-
-    // Free multicolored edges.
-    for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
-        if (as.classify(*eit) != AlphaShape::SINGULAR) continue;
-
-        auto cell = eit->first;
-        FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
-
-        if (is_multicolored(edge, color_labels)) {
-            result.generating_free_edges.push_back(edge);
-        }
-    }
-
+    result.tetrahedra = collect_multicolored_tetrahedra(rt, color_labels);
     return result;
 }
 
@@ -243,47 +217,66 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_uniform
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
     const Points& points,
     const ColorLabels& color_labels,
-    double radius,
-    bool alpha
+    const Radii& radii,
+    std::optional<bool> alpha
 ) const {
-    // Uniform weights leave the Delaunay triangulation unchanged, so a
-    // radius without alpha can only be a mistake.
-    if (!alpha) {
-        throw std::invalid_argument(
-            "a radius has no effect on the plain Delaunay complex: omit it, "
-            "or pass alpha=true for the alpha complex");
+    const bool use_alpha = alpha.value_or(!radii.empty());
+    if (radii.empty()) {
+        if (use_alpha) {
+            throw std::invalid_argument(
+                "alpha requires radii: pass per-point radii for the weighted "
+                "alpha complex or a single radius for the uniform one");
+        }
+        return collect_multicolored_simplices_delaunay(points, color_labels);
     }
+    return use_alpha
+        ? collect_multicolored_simplices_weighted_alpha(points, color_labels, radii)
+        : collect_multicolored_simplices_weighted_delaunay(points, color_labels, radii);
+}
+
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius
+) const {
     return collect_multicolored_simplices_uniform_alpha(points, color_labels, radius);
+}
+
+MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
+    const Points& points,
+    const ColorLabels& color_labels
+) const {
+    return collect_multicolored_simplices(points, color_labels, Radii{}, false);
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool alpha,
+    std::optional<bool> alpha,
     bool lower_star
 ) const {
+    const bool use_alpha = alpha.value_or(!radii.empty());
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
-        points, color_labels, radii, alpha, lower_star
+        points, color_labels, radii, use_alpha, lower_star
     );
 
     return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
-                            std::move(vertex_atom_indices), alpha, lower_star};
+                            std::move(vertex_atom_indices), use_alpha, lower_star};
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(
     const Points& points,
     const ColorLabels& color_labels,
     double radius,
-    bool alpha,
     bool lower_star
 ) const {
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
-        points, color_labels, radius, alpha, lower_star
+        points, color_labels, radius, lower_star
     );
 
     return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
-                            std::move(vertex_atom_indices), alpha, lower_star};
+                            std::move(vertex_atom_indices), true, lower_star};
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(

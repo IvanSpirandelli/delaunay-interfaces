@@ -7,7 +7,6 @@
 #include <delaunay_interfaces/interface_generation.hpp>
 #include <delaunay_interfaces/simplified_subdivision.hpp>
 #include <delaunay_interfaces/barycentric_subdivision.hpp>
-#include <delaunay_interfaces/chromatic_partitioning.hpp>
 
 using namespace delaunay_interfaces;
 
@@ -246,7 +245,7 @@ void test_compute_simplified_surface_delaunay() {
     assert(surface.triangles.size() == 2);
     assert(surface.quads.size() == 1);
     assert(surface.edges.size() == 0);
-    assert(surface.generating_simplices.generating_tetrahedra.size() == 3);
+    assert(surface.generating_simplices.tetrahedra.size() == 3);
     assert(surface.alpha == false);
 
     // Every vertex should have exactly 2 atom indices
@@ -357,7 +356,7 @@ void test_random_vertices_equal_multicolored_edges() {
 
     // Get all multicolored tetrahedra from the Delaunay triangulation
     InterfaceGenerator gen;
-    auto tets = gen.collect_multicolored_simplices(points, colors, Radii{}, false).generating_tetrahedra;
+    auto tets = gen.collect_multicolored_simplices(points, colors, Radii{}, false).tetrahedra;
 
     // Collect unique multicolored edges
     std::set<std::array<int, 2>> mc_edges;

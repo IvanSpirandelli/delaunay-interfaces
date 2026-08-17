@@ -10,7 +10,6 @@
 #include <fstream>
 #include <filesystem>
 #include <delaunay_interfaces/interface_generation.hpp>
-#include <delaunay_interfaces/barycentric_subdivision.hpp>
 
 using namespace delaunay_interfaces;
 
@@ -713,22 +712,22 @@ void test_mixed_free_simplices() {
     auto mc = gen.collect_multicolored_simplices(
         mixed_points, colors_mixed, radii, true);
 
-    std::cout << "  " << mc.generating_tetrahedra.size() << " tets, "
-              << mc.generating_free_triangles.size() << " free triangles, "
-              << mc.generating_free_edges.size() << " free edges\n";
+    std::cout << "  " << mc.tetrahedra.size() << " tets, "
+              << mc.free_triangles.size() << " free triangles, "
+              << mc.free_edges.size() << " free edges\n";
 
-    assert(mc.generating_tetrahedra.size() == 1);
-    Tetrahedron tet = mc.generating_tetrahedra[0];
+    assert(mc.tetrahedra.size() == 1);
+    Tetrahedron tet = mc.tetrahedra[0];
     std::sort(tet.begin(), tet.end());
     assert((tet == Tetrahedron{0, 1, 2, 3}));
 
-    assert(mc.generating_free_triangles.size() == 1);
-    FreeTriangle tri = mc.generating_free_triangles[0];
+    assert(mc.free_triangles.size() == 1);
+    FreeTriangle tri = mc.free_triangles[0];
     std::sort(tri.begin(), tri.end());
     assert((tri == FreeTriangle{4, 5, 6}));
 
-    assert(mc.generating_free_edges.size() == 1);
-    FreeEdge edge = mc.generating_free_edges[0];
+    assert(mc.free_edges.size() == 1);
+    FreeEdge edge = mc.free_edges[0];
     std::sort(edge.begin(), edge.end());
     assert((edge == FreeEdge{7, 8}));
 
@@ -769,7 +768,7 @@ void test_scalar_radius_equals_uniform_vector() {
             auto [v_vec, f_vec, m_vec, a_vec] = compute_barycentric_subdivision_and_filtration(
                 tet_points, *colors, radii, true);
             auto [v_sca, f_sca, m_sca, a_sca] = compute_barycentric_subdivision_and_filtration(
-                tet_points, *colors, r, true);
+                tet_points, *colors, r);
 
             assert(v_vec.size() == v_sca.size());
             auto c_vec = count_filtration(f_vec);
@@ -790,19 +789,10 @@ void test_scalar_radius_equals_uniform_vector() {
     Radii radii(9, 0.62);
     InterfaceGenerator gen;
     auto m_vec = gen.collect_multicolored_simplices(mixed_points, colors_mixed, radii, true);
-    auto m_sca = gen.collect_multicolored_simplices(mixed_points, colors_mixed, 0.62, true);
-    assert(m_vec.generating_tetrahedra.size() == m_sca.generating_tetrahedra.size());
-    assert(m_vec.generating_free_triangles.size() == m_sca.generating_free_triangles.size());
-    assert(m_vec.generating_free_edges.size() == m_sca.generating_free_edges.size());
-
-    // A radius with alpha=false is rejected (plain Delaunay needs no radius).
-    bool threw = false;
-    try {
-        (void)gen.collect_multicolored_simplices(mixed_points, colors_mixed, 0.62, false);
-    } catch (const std::invalid_argument&) {
-        threw = true;
-    }
-    assert(threw);
+    auto m_sca = gen.collect_multicolored_simplices(mixed_points, colors_mixed, 0.62);
+    assert(m_vec.tetrahedra.size() == m_sca.tetrahedra.size());
+    assert(m_vec.free_triangles.size() == m_sca.free_triangles.size());
+    assert(m_vec.free_edges.size() == m_sca.free_edges.size());
 
     std::cout << "  PASS\n";
 }
@@ -928,7 +918,7 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
 
     // Invariant 1: Triangle count from generating tetrahedra
     size_t n_31 = 0, n_22 = 0, n_211 = 0, n_1111 = 0;
-    for (const auto& tet : mc_simplices.generating_tetrahedra) {
+    for (const auto& tet : mc_simplices.tetrahedra) {
         auto split = classify_tet_split(tet, colors);
         if (split == "3-1") n_31++;
         else if (split == "2-2") n_22++;
@@ -953,7 +943,7 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
     auto fa = analyze_free_simplices(filtration);
 
     size_t expected_free_edges = 0;
-    for (const auto& tri : mc_simplices.generating_free_triangles) {
+    for (const auto& tri : mc_simplices.free_triangles) {
         auto split = classify_triangle_split(tri, colors);
         if (split == "2-1") expected_free_edges += 2;
         else if (split == "1-1-1") expected_free_edges += 3;
@@ -972,7 +962,7 @@ bool test_random_pointcloud_consistency(unsigned int seed = 42) {
     }
 
     // Invariant 3: Isolated vertices from free generating edges
-    size_t expected_isolated = mc_simplices.generating_free_edges.size();
+    size_t expected_isolated = mc_simplices.free_edges.size();
     if (fa.isolated_vertices != expected_isolated) {
         dump_pointcloud(fail_dir, seed, points, radii, colors,
             "isolated vertex count mismatch: expected " + std::to_string(expected_isolated)

@@ -1,12 +1,11 @@
 #include "jlcxx/jlcxx.hpp"
 #include "delaunay_interfaces/interface_generation.hpp"
 #include <vector>
-#include <string>
-#include <tuple>
 
 using namespace delaunay_interfaces;
 
-// Mark types as non-mirrored
+// Non-mirrored: these types have non-trivial layout, so CxxWrap must box
+// them instead of mapping them to isbits Julia structs.
 namespace jlcxx {
     template<> struct IsMirroredType<InterfaceGenerator> : std::false_type { };
     template<> struct IsMirroredType<InterfaceSurface> : std::false_type { };
@@ -29,8 +28,6 @@ Points flat_points_to_cpp(jlcxx::ArrayRef<double> flat_points, int n_points) {
 }
 
 JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
-    mod.method("version", []() { return std::string("0.1.0"); });
-
     // InterfaceSurface type
     mod.add_type<InterfaceSurface>("InterfaceSurfaceCxx")
         .method("num_vertices", [](const InterfaceSurface& s) {
@@ -75,32 +72,32 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             return std::get<1>(s.filtration[i]);
         })
         .method("num_generating_tetrahedra", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.generating_simplices.generating_tetrahedra.size());
+            return static_cast<int>(s.generating_simplices.tetrahedra.size());
         })
         .method("get_all_generating_tetrahedra", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            result.reserve(s.generating_simplices.generating_tetrahedra.size() * 4);
-            for (const auto& tet : s.generating_simplices.generating_tetrahedra) {
+            result.reserve(s.generating_simplices.tetrahedra.size() * 4);
+            for (const auto& tet : s.generating_simplices.tetrahedra) {
                 for (int v : tet) result.push_back(v);
             }
             return result;
         })
         .method("num_generating_free_triangles", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.generating_simplices.generating_free_triangles.size());
+            return static_cast<int>(s.generating_simplices.free_triangles.size());
         })
         .method("get_all_generating_free_triangles", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            for (const auto& tri : s.generating_simplices.generating_free_triangles) {
+            for (const auto& tri : s.generating_simplices.free_triangles) {
                 for (int v : tri) result.push_back(v);
             }
             return result;
         })
         .method("num_generating_free_edges", [](const InterfaceSurface& s) {
-            return static_cast<int>(s.generating_simplices.generating_free_edges.size());
+            return static_cast<int>(s.generating_simplices.free_edges.size());
         })
         .method("get_all_generating_free_edges", [](const InterfaceSurface& s) {
             std::vector<int> result;
-            for (const auto& edge : s.generating_simplices.generating_free_edges) {
+            for (const auto& edge : s.generating_simplices.free_edges) {
                 for (int v : edge) result.push_back(v);
             }
             return result;
@@ -138,12 +135,11 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             int n_points,
             jlcxx::ArrayRef<int> color_labels_arr,
             double radius,
-            bool alpha,
             bool lower_star
         ) {
             Points points = flat_points_to_cpp(flat_points, n_points);
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
-            return gen.compute_interface_surface(points, color_labels, radius, alpha, lower_star);
+            return gen.compute_interface_surface(points, color_labels, radius, lower_star);
         })
         .method("get_multicolored_tetrahedra", [](
             InterfaceGenerator& gen,
@@ -157,7 +153,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             ColorLabels color_labels = julia_array_to_vector(color_labels_arr);
             Radii radii = julia_array_to_vector(radii_arr);
 
-            auto tets = gen.collect_multicolored_simplices(points, color_labels, radii, alpha).generating_tetrahedra;
+            auto tets = gen.collect_multicolored_simplices(points, color_labels, radii, alpha).tetrahedra;
 
             // Convert to a flat array where each 4 consecutive integers represent one tetrahedron
             std::vector<int> result;

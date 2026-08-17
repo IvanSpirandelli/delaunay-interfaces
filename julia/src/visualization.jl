@@ -12,8 +12,8 @@ const DEFAULT_INTERFACE_COLORMAP = :viridis
 const DEFAULT_NUM_COLORS = 4
 
 # Categorical colors for point/molecule labels; viridis is used for filtration values.
-const CONF_GRADIENT = cgrad(:Dark2_4, DEFAULT_NUM_COLORS, categorical=true)
-const CONF_COLORMAP = [CONF_GRADIENT[i] for i in 1:DEFAULT_NUM_COLORS]
+const POINT_LABEL_GRADIENT = cgrad(:Dark2_4, DEFAULT_NUM_COLORS, categorical=true)
+const POINT_LABEL_COLORS = [POINT_LABEL_GRADIENT[i] for i in 1:DEFAULT_NUM_COLORS]
 const DEFAULT_POINT_CLOUD_COLORMAP = :Dark2_4
 
 """
@@ -357,15 +357,14 @@ function filtration_figure(
 end
 
 """
-    sequence_figure(surfaces, points_seq, labels_seq, radii_seq; kwargs...)
+    sequence_figure(surfaces, points_seq, color_labels_seq; kwargs...)
 
 Create an interactive figure showing a sequence of interface surfaces.
 
 # Arguments
 - `surfaces::Vector{InterfaceSurface}`: Sequence of interface surfaces
 - `points_seq::Vector{Vector{Vector{Float64}}}`: Points for each frame
-- `labels_seq::Vector{Vector{Int}}`: Color labels for each frame
-- `radii_seq::Vector{Vector{Float64}}`: Radii for each frame
+- `color_labels_seq::Vector{Vector{Int}}`: Color labels for each frame
 
 # Keyword Arguments
 - `show_wireframe::Bool`: Show wireframe overlay (default: `false`)
@@ -381,8 +380,7 @@ Create an interactive figure showing a sequence of interface surfaces.
 function sequence_figure(
     surfaces::Vector{InterfaceSurface},
     points_seq::Vector{Vector{Vector{Float64}}},
-    labels_seq::Vector{Vector{Int}},
-    radii_seq::Vector{Vector{Float64}};
+    color_labels_seq::Vector{Vector{Int}};
     show_wireframe::Bool=false,
     show_multicolored_points::Bool=false,
     show_free_simplices::Bool=false,
@@ -438,7 +436,7 @@ function sequence_figure(
     if show_multicolored_points
         current_points = @lift([Point3f(p...) for p in points_seq[$slider.value]])
         current_point_colors = @lift(
-            cgrad(point_colormap, DEFAULT_NUM_COLORS; categorical=true)[labels_seq[$slider.value]]
+            cgrad(point_colormap, DEFAULT_NUM_COLORS; categorical=true)[color_labels_seq[$slider.value]]
         )
         scatter!(scene, current_points;
             color=current_point_colors,
@@ -446,6 +444,133 @@ function sequence_figure(
             strokewidth=1,
             strokecolor=:black
         )
+    end
+
+    return fig
+end
+
+"""
+    subdivision_figure(points, color_labels, surface; title="", show_free_simplices=false)
+
+Create a dual-panel figure for any colored point cloud:
+- Left (LScene): Viridis-colored interface with wireframe, input points, and multicolored edges
+- Right (Axis3): Monocolor interface with wireframe and barycenter dots
+
+Works for tetrahedra, bipyramids, and large point clouds alike — edges are drawn
+only for bicolored edges present in the alpha/Delaunay complex (not all pairs).
+
+# Arguments
+- `points::Vector{Vector{Float64}}`: Input point coordinates
+- `color_labels::Vector{Int}`: Color labels for each point
+- `surface::InterfaceSurface`: The computed interface surface
+
+# Keyword Arguments
+- `title::String`: Figure title (default: "")
+- `show_free_simplices::Bool`: Show free edges and isolated vertices of the subdivision (default: `false`)
+- `show_monocolored_edges::Bool`: Draw monocolored edges of the input (all same-colored point pairs); intended for single-tetrahedron inputs (default: `false`)
+
+# Returns
+- `Figure`: The GLMakie figure
+"""
+function subdivision_figure(
+    points::Vector{Vector{Float64}},
+    color_labels::Vector{Int},
+    surface::InterfaceSurface;
+    title::String="",
+    show_free_simplices::Bool=false,
+    show_monocolored_edges::Bool=false
+)
+    fig = Figure()
+
+    Label(fig[1, 1, Top()], "Point Cloud and Interface"; fontsize=16)
+    scene_left = LScene(fig[1, 1]; show_axis=false)
+
+    mesh_obj, mesh_colors = generate_colored_mesh(surface)
+    has_mesh = !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
+
+    if has_mesh
+        mesh!(scene_left, mesh_obj;
+            color=mesh_colors,
+            colormap=:viridis,
+            colorrange=(minimum(mesh_colors), maximum(mesh_colors)),
+            shading=NoShading
+        )
+        wireframe!(scene_left, mesh_obj; color=:white, linewidth=1)
+    end
+
+    draw_multicolored_edges!(scene_left, points, color_labels, surface)
+
+    if show_monocolored_edges
+        draw_monocolored_edges!(scene_left, points, color_labels)
+    end
+
+    if show_free_simplices
+        draw_free_simplices!(scene_left, surface)
+    end
+
+    pts_mat = reduce(hcat, points)'
+    point_colors = [POINT_LABEL_COLORS[mod1(c, DEFAULT_NUM_COLORS)] for c in color_labels]
+    scatter!(scene_left, pts_mat[:, 1], pts_mat[:, 2], pts_mat[:, 3];
+             color=point_colors, markersize=15)
+
+    ax2 = Axis3(fig[1, 2]; aspect=:data, title="Interface and Barycenters")
+
+    if has_mesh
+        mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7), shading=NoShading)
+        wireframe!(ax2, mesh_obj; color=:black, linewidth=1)
+
+        bary_pts = reduce(hcat, surface.vertices)'
+        scatter!(ax2, bary_pts[:, 1], bary_pts[:, 2], bary_pts[:, 3];
+                 color=:red, markersize=10)
+    end
+
+    if !isempty(title)
+        Label(fig[0, :], title; fontsize=20)
+    end
+
+    return fig
+end
+
+"""
+    interface_only_figure(surface; title="", show_wireframe=false)
+
+Create a single-panel figure showing only the interface surface with lighting.
+
+# Arguments
+- `surface::InterfaceSurface`: The computed interface surface
+
+# Keyword Arguments
+- `title::String`: Figure title (default: "")
+- `show_wireframe::Bool`: Show wireframe overlay (default: false)
+
+# Returns
+- `Figure`: The GLMakie figure
+"""
+function interface_only_figure(
+    surface::InterfaceSurface;
+    title::String="",
+    show_wireframe::Bool=false
+)
+    fig = Figure()
+    scene = LScene(fig[1, 1]; show_axis=false)
+
+    mesh_obj, mesh_colors = generate_colored_mesh(surface)
+
+    if !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
+        # Lighting stays enabled here (no NoShading), unlike draw_interface!.
+        mesh!(scene, mesh_obj;
+            color=mesh_colors,
+            colormap=:viridis,
+            colorrange=(minimum(mesh_colors), maximum(mesh_colors))
+        )
+
+        if show_wireframe
+            wireframe!(scene, mesh_obj; color=:white, linewidth=1)
+        end
+    end
+
+    if !isempty(title)
+        Label(fig[0, :], title; fontsize=20)
     end
 
     return fig
@@ -578,7 +703,7 @@ function compute_free_simplex_data(surface::InterfaceSurface)
 end
 
 """
-    draw_multicolored_edges!(scene, points, colors, surface; linewidth=2)
+    draw_multicolored_edges!(scene, points, color_labels, surface; linewidth=2)
 
 Draw the multicolored edges of the generating complex between input points.
 Collects unique bicolored edges from generating tetrahedra, free triangles,
@@ -587,7 +712,7 @@ and free edges, then draws them as gradient-colored line segments.
 function draw_multicolored_edges!(
     scene::LScene,
     points::Vector{Vector{Float64}},
-    colors::Vector{Int},
+    color_labels::Vector{Int},
     surface::InterfaceSurface;
     linewidth::Real=2
 )
@@ -597,13 +722,13 @@ function draw_multicolored_edges!(
     for row in eachrow(surface.generating_tetrahedra)
         verts = collect(row)
         for i in 1:4, j in (i+1):4
-            colors[verts[i]] != colors[verts[j]] && push!(mc_edges, minmax(verts[i], verts[j]))
+            color_labels[verts[i]] != color_labels[verts[j]] && push!(mc_edges, minmax(verts[i], verts[j]))
         end
     end
 
     for tri in surface.generating_free_triangles
         for i in 1:3, j in (i+1):3
-            colors[tri[i]] != colors[tri[j]] && push!(mc_edges, minmax(tri[i], tri[j]))
+            color_labels[tri[i]] != color_labels[tri[j]] && push!(mc_edges, minmax(tri[i], tri[j]))
         end
     end
 
@@ -617,14 +742,14 @@ function draw_multicolored_edges!(
     edge_cols = RGBA[]
     for (i, j) in mc_edges
         push!(edge_pts, pts[i], pts[j])
-        push!(edge_cols, RGBA(CONF_COLORMAP[mod1(colors[i], DEFAULT_NUM_COLORS)]),
-                         RGBA(CONF_COLORMAP[mod1(colors[j], DEFAULT_NUM_COLORS)]))
+        push!(edge_cols, RGBA(POINT_LABEL_COLORS[mod1(color_labels[i], DEFAULT_NUM_COLORS)]),
+                         RGBA(POINT_LABEL_COLORS[mod1(color_labels[j], DEFAULT_NUM_COLORS)]))
     end
     linesegments!(scene, edge_pts; color=edge_cols, linewidth=linewidth)
 end
 
 """
-    draw_monocolored_edges!(scene, points, colors; linewidth=2)
+    draw_monocolored_edges!(scene, points, color_labels; linewidth=2)
 
 Draw the monocolored edges of the input complex: every pair of input points
 sharing the same color label, drawn in that color. Intended for small inputs
@@ -633,7 +758,7 @@ sharing the same color label, drawn in that color. Intended for small inputs
 function draw_monocolored_edges!(
     scene::LScene,
     points::Vector{Vector{Float64}},
-    colors::Vector{Int};
+    color_labels::Vector{Int};
     linewidth::Real=2
 )
     pts = [Point3f(p...) for p in points]
@@ -641,141 +766,14 @@ function draw_monocolored_edges!(
     edge_pts = Point3f[]
     edge_cols = RGBA[]
     for i in 1:length(pts), j in (i+1):length(pts)
-        colors[i] == colors[j] || continue
+        color_labels[i] == color_labels[j] || continue
         push!(edge_pts, pts[i], pts[j])
-        c = RGBA(CONF_COLORMAP[mod1(colors[i], DEFAULT_NUM_COLORS)])
+        c = RGBA(POINT_LABEL_COLORS[mod1(color_labels[i], DEFAULT_NUM_COLORS)])
         push!(edge_cols, c, c)
     end
 
     isempty(edge_pts) && return
     linesegments!(scene, edge_pts; color=edge_cols, linewidth=linewidth)
-end
-
-"""
-    subdivision_figure(points, colors, surface; title="", show_free_simplices=false)
-
-Create a dual-panel figure for any colored point cloud:
-- Left (LScene): Viridis-colored interface with wireframe, input points, and multicolored edges
-- Right (Axis3): Monocolor interface with wireframe and barycenter dots
-
-Works for tetrahedra, bipyramids, and large point clouds alike — edges are drawn
-only for bicolored edges present in the alpha/Delaunay complex (not all pairs).
-
-# Arguments
-- `points::Vector{Vector{Float64}}`: Input point coordinates
-- `colors::Vector{Int}`: Color labels for each point
-- `surface::InterfaceSurface`: The computed interface surface
-
-# Keyword Arguments
-- `title::String`: Figure title (default: "")
-- `show_free_simplices::Bool`: Show free edges and isolated vertices of the subdivision (default: `false`)
-- `show_monocolored_edges::Bool`: Draw monocolored edges of the input (all same-colored point pairs); intended for single-tetrahedron inputs (default: `false`)
-
-# Returns
-- `Figure`: The GLMakie figure
-"""
-function subdivision_figure(
-    points::Vector{Vector{Float64}},
-    colors::Vector{Int},
-    surface::InterfaceSurface;
-    title::String="",
-    show_free_simplices::Bool=false,
-    show_monocolored_edges::Bool=false
-)
-    fig = Figure()
-
-    Label(fig[1, 1, Top()], "Point Cloud and Interface"; fontsize=16)
-    scene_left = LScene(fig[1, 1]; show_axis=false)
-
-    mesh_obj, mesh_colors = generate_colored_mesh(surface)
-    has_mesh = !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
-
-    if has_mesh
-        mesh!(scene_left, mesh_obj;
-            color=mesh_colors,
-            colormap=:viridis,
-            colorrange=(minimum(mesh_colors), maximum(mesh_colors)),
-            shading=NoShading
-        )
-        wireframe!(scene_left, mesh_obj; color=:white, linewidth=1)
-    end
-
-    draw_multicolored_edges!(scene_left, points, colors, surface)
-
-    if show_monocolored_edges
-        draw_monocolored_edges!(scene_left, points, colors)
-    end
-
-    if show_free_simplices
-        draw_free_simplices!(scene_left, surface)
-    end
-
-    pts_mat = reduce(hcat, points)'
-    point_colors = [CONF_COLORMAP[mod1(c, DEFAULT_NUM_COLORS)] for c in colors]
-    scatter!(scene_left, pts_mat[:, 1], pts_mat[:, 2], pts_mat[:, 3];
-             color=point_colors, markersize=15)
-
-    ax2 = Axis3(fig[1, 2]; aspect=:data, title="Interface and Barycenters")
-
-    if has_mesh
-        mesh!(ax2, mesh_obj; color=RGBAf(0.27, 0.51, 0.71, 0.7), shading=NoShading)
-        wireframe!(ax2, mesh_obj; color=:black, linewidth=1)
-
-        bary_pts = reduce(hcat, surface.vertices)'
-        scatter!(ax2, bary_pts[:, 1], bary_pts[:, 2], bary_pts[:, 3];
-                 color=:red, markersize=10)
-    end
-
-    if !isempty(title)
-        Label(fig[0, :], title; fontsize=20)
-    end
-
-    return fig
-end
-
-"""
-    interface_only_figure(surface; title="", show_wireframe=false)
-
-Create a single-panel figure showing only the interface surface with lighting.
-
-# Arguments
-- `surface::InterfaceSurface`: The computed interface surface
-
-# Keyword Arguments
-- `title::String`: Figure title (default: "")
-- `show_wireframe::Bool`: Show wireframe overlay (default: false)
-
-# Returns
-- `Figure`: The GLMakie figure
-"""
-function interface_only_figure(
-    surface::InterfaceSurface;
-    title::String="",
-    show_wireframe::Bool=false
-)
-    fig = Figure()
-    scene = LScene(fig[1, 1]; show_axis=false)
-
-    mesh_obj, mesh_colors = generate_colored_mesh(surface)
-
-    if !isempty(mesh_colors) && !isempty(GeometryBasics.faces(mesh_obj))
-        # Lighting stays enabled here (no NoShading), unlike draw_interface!.
-        mesh!(scene, mesh_obj;
-            color=mesh_colors,
-            colormap=:viridis,
-            colorrange=(minimum(mesh_colors), maximum(mesh_colors))
-        )
-
-        if show_wireframe
-            wireframe!(scene, mesh_obj; color=:white, linewidth=1)
-        end
-    end
-
-    if !isempty(title)
-        Label(fig[0, :], title; fontsize=20)
-    end
-
-    return fig
 end
 
 export vertex_filtration_values, generate_colored_mesh
@@ -787,4 +785,4 @@ export interface_and_point_cloud_figure
 export filtration_figure
 export sequence_figure
 export subdivision_figure, interface_only_figure
-export CONF_GRADIENT, CONF_COLORMAP
+export POINT_LABEL_GRADIENT, POINT_LABEL_COLORS

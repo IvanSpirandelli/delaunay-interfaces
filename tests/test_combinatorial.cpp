@@ -47,7 +47,7 @@ void test_all_distinct_colors() {
     auto surface = generator.compute_interface_surface(points, colors, Radii{}, false);
 
     // Count tetrahedra by getting them directly
-    auto tetrahedra = generator.collect_multicolored_simplices(points, colors, Radii{}, false).generating_tetrahedra;
+    auto tetrahedra = generator.collect_multicolored_simplices(points, colors, Radii{}, false).tetrahedra;
     size_t num_tetrahedra = tetrahedra.size();
 
     // Count triangles in filtration (simplices with 3 vertices)

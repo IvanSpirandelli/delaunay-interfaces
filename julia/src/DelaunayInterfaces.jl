@@ -15,7 +15,7 @@ function __init__()
     @initcxx
 end
 
-# Re-export C++ types
+# Re-export C++ types (0-based indices; prefer the Julia API below)
 export InterfaceGenerator, InterfaceSurfaceCxx
 export compute_interface_surface, get_multicolored_tetrahedra
 export num_vertices, num_simplices, is_alpha
@@ -25,20 +25,26 @@ export num_generating_free_triangles, get_all_generating_free_triangles
 export num_generating_free_edges, get_all_generating_free_edges
 export get_vertex_atom_indices_flat, is_lower_star
 
+# Julia API (1-based indices)
+export InterfaceSurface
+export get_triangles, get_edges, get_vertex_simplices
+
 """
     InterfaceSurface
 
 Julia wrapper for interface surface results with convenient accessors.
 
-# Fields (accessible via methods)
+# Fields
 - `vertices::Vector{Vector{Float64}}` - Barycenter coordinates
 - `filtration::Vector{Tuple{Vector{Int32}, Float64}}` - Simplices with filtration values
+- `generating_tetrahedra::Matrix{Int}` - Generating multicolored tetrahedra, one per row
+- `generating_free_triangles::Vector{Vector{Int}}` - Generating free multicolored triangles
+- `generating_free_edges::Vector{Vector{Int}}` - Generating free multicolored edges
 - `vertex_atom_indices::Vector{Vector{Int}}` - For each vertex, the sorted input atom indices it is the barycenter of
 - `alpha::Bool` - Whether alpha complex was used
 - `lower_star::Bool` - Whether lower star filtration was used
 """
 struct InterfaceSurface
-    _cxx::InterfaceSurfaceCxx
     vertices::Vector{Vector{Float64}}
     filtration::Vector{Tuple{Vector{Int32}, Float64}}
     generating_tetrahedra::Matrix{Int}
@@ -102,12 +108,12 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
         idx += n_atoms
     end
 
-    InterfaceSurface(cxx_surface, vertices, filtration, generating_tetrahedra, generating_free_triangles, generating_free_edges,
+    InterfaceSurface(vertices, filtration, generating_tetrahedra, generating_free_triangles, generating_free_edges,
                      vertex_atom_indices, is_alpha(cxx_surface), is_lower_star(cxx_surface))
 end
 
 """
-    InterfaceSurface(points, color_labels[, radii]; alpha=!isempty(radii))
+    InterfaceSurface(points, color_labels[, radii]; alpha=!isempty(radii), lower_star=false)
 
 Compute the interface surface from a colored point cloud.
 
@@ -116,6 +122,7 @@ Compute the interface surface from a colored point cloud.
 - `color_labels::Vector{Int}`: Color label for each point (at least 2 distinct colors)
 - `radii::Vector{Float64}`: Radius for each point; non-empty radii select the weighted complex
 - `alpha::Bool`: Use alpha complex filtering (default: `true` iff radii given)
+- `lower_star::Bool`: Use lower star filtration (max) instead of upper star (min) (default: `false`)
 
 # Returns
 - `InterfaceSurface`: Object containing vertices and filtration data
@@ -135,7 +142,7 @@ function InterfaceSurface(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
-    alpha::Bool=!isempty(radii),  # Default: alpha if radii provided
+    alpha::Bool=!isempty(radii),
     lower_star::Bool=false
 )
     gen = InterfaceGenerator()
@@ -148,24 +155,23 @@ function InterfaceSurface(
 end
 
 """
-    InterfaceSurface(points, color_labels, radius::Real; alpha=true, lower_star=false)
+    InterfaceSurface(points, color_labels, radius::Real; lower_star=false)
 
-Uniform-radius variant: `alpha=true` builds the alpha complex with parameter
-`radius^2` (routed through CGAL's unweighted alpha shape). `alpha=false`
-throws: a radius has no effect on the plain Delaunay complex, so omit it.
+Uniform-radius variant: builds the alpha complex with parameter `radius^2`
+(routed through CGAL's unweighted alpha shape). Always an alpha complex —
+a radius has no effect on the plain Delaunay complex, so omit it for that.
 """
 function InterfaceSurface(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radius::Real;
-    alpha::Bool=true,
     lower_star::Bool=false
 )
     gen = InterfaceGenerator()
     n_points = length(points)
     flat_points = reduce(vcat, points)
     color_labels_i32 = Int32.(color_labels)
-    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, Float64(radius), alpha, lower_star)
+    cxx_surface = compute_interface_surface(gen, flat_points, n_points, color_labels_i32, Float64(radius), lower_star)
     return InterfaceSurface(cxx_surface)
 end
 
@@ -194,26 +200,26 @@ function get_edges(surface::InterfaceSurface)
 end
 
 """
-    get_vertices_simplices(surface::InterfaceSurface)
+    get_vertex_simplices(surface::InterfaceSurface)
 
 Extract only the vertices (0-simplices) from the filtration.
 
 # Returns
 - `Vector{Tuple{Vector{Int32}, Float64}}`: Vertices with their filtration values
 """
-function get_vertices_simplices(surface::InterfaceSurface)
+function get_vertex_simplices(surface::InterfaceSurface)
     return filter(s -> length(s[1]) == 1, surface.filtration)
 end
 
 """
-    get_multicolored_tetrahedra_wrapper(points, color_labels[, radii]; alpha=!isempty(radii))
+    get_multicolored_tetrahedra(points, color_labels[, radii]; alpha=!isempty(radii))
 
 Get all multicolored tetrahedra from the Delaunay/alpha complex.
 
 # Returns
 - `Matrix{Int}`: Matrix where each row is a tetrahedron with 4 vertex indices
 """
-function get_multicolored_tetrahedra_wrapper(
+function get_multicolored_tetrahedra(
     points::Vector{Vector{Float64}},
     color_labels::Vector{Int},
     radii::Vector{Float64}=Float64[];
@@ -231,10 +237,6 @@ function get_multicolored_tetrahedra_wrapper(
     # Convert 0-based C++ indices to 1-based Julia indices
     return reshape(collect(flat_result), 4, :)' .+ 1
 end
-
-export InterfaceSurface
-export get_triangles, get_edges, get_vertices_simplices
-export get_multicolored_tetrahedra_wrapper
 
 # Visualization module is included separately when GLMakie is available
 # Use: include(joinpath(pkgdir(DelaunayInterfaces), "src", "visualization.jl"))

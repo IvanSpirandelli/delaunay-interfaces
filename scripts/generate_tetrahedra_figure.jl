@@ -13,13 +13,6 @@ using GeometryBasics
 
 include(joinpath(@__DIR__, "figure_utils.jl"))
 
-const CONF_COLORS = [
-    colorant"#1b9e77",  # teal
-    colorant"#d95f02",  # orange
-    colorant"#7570b3",  # purple
-    colorant"#e7298a",  # pink
-]
-
 const INTERFACE_COLOR = RGBf(0.7, 0.7, 0.7)
 
 function rotate_points(points, axis, angle)
@@ -70,8 +63,8 @@ function draw_tetrahedron_panel!(scene, points, colors, surface)
     edge_colors = RGBAf[]
     for i in 1:n, j in (i+1):n
         push!(edge_points, Point3f(points[i]...), Point3f(points[j]...))
-        push!(edge_colors, RGBAf(CONF_COLORS[mod1(colors[i], 4)]),
-                           RGBAf(CONF_COLORS[mod1(colors[j], 4)]))
+        push!(edge_colors, RGBAf(POINT_LABEL_COLORS[mod1(colors[i], 4)]),
+                           RGBAf(POINT_LABEL_COLORS[mod1(colors[j], 4)]))
     end
     linesegments!(scene, edge_points; color=edge_colors, linewidth=2)
 
@@ -84,7 +77,7 @@ function draw_tetrahedron_panel!(scene, points, colors, surface)
     end
 
     meshscatter!(scene, [Point3f(p...) for p in points];
-        color=[CONF_COLORS[mod1(c, 4)] for c in colors],
+        color=[POINT_LABEL_COLORS[mod1(c, 4)] for c in colors],
         markersize=0.05, shading=NoShading)
 
     if has_mesh

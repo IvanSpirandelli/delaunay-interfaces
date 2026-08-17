@@ -6,9 +6,9 @@
 
 namespace delaunay_interfaces {
 
-// Groups vertex indices by color, parts sorted by descending size.
-// Downstream code (e.g. SimplifiedSubdivision) relies on that ordering.
-[[nodiscard]] inline Partition get_chromatic_partitioning(
+// Groups vertex indices by color, parts sorted by descending size so the
+// part order is deterministic.
+[[nodiscard]] inline Partition compute_chromatic_partition(
     const std::vector<int>& vertices,
     const ColorLabels& color_labels
 ) {
@@ -33,11 +33,11 @@ namespace delaunay_interfaces {
     return parts;
 }
 
-[[nodiscard]] inline Partition get_chromatic_partitioning(
+[[nodiscard]] inline Partition compute_chromatic_partition(
     const Tetrahedron& tet,
     const ColorLabels& color_labels
 ) {
-    return get_chromatic_partitioning({tet.begin(), tet.end()}, color_labels);
+    return compute_chromatic_partition({tet.begin(), tet.end()}, color_labels);
 }
 
 [[nodiscard]] inline Point3D compute_barycenter(const Points& points, const std::vector<int>& indices) {

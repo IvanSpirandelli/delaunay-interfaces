@@ -9,7 +9,7 @@ delaunay-interfaces C++ library.
 import sys
 import os
 
-# Add build directory to path (works from repo root or examples directory)
+# Add build directory to path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 repo_root = os.path.dirname(script_dir)
 sys.path.insert(0, os.path.join(repo_root, 'build', 'python'))

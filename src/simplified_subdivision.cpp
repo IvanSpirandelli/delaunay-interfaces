@@ -29,15 +29,15 @@ int32_t SimplifiedSubdivision::get_or_create_vertex(int atom_a, int atom_b) {
 }
 
 void SimplifiedSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
-    auto partition = get_chromatic_partitioning(simplex_vertices, color_labels_);
+    auto partition = compute_chromatic_partition(simplex_vertices, color_labels_);
     if (partition.size() != 2) {
         throw std::invalid_argument(
             "SimplifiedSubdivision requires exactly 2 colors, got " +
             std::to_string(partition.size()));
     }
 
-    // get_chromatic_partitioning sorts parts by descending size, so part_a is
-    // the larger (or equal) group. The quad winding below relies on this.
+    // The part order from compute_chromatic_partition is deterministic; the
+    // quad layout comes from the nested loop below and works for either order.
     const auto& part_a = partition[0];
     const auto& part_b = partition[1];
 
@@ -106,12 +106,13 @@ SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
     const Radii& radii,
-    bool alpha
+    std::optional<bool> alpha
 ) {
     detail::validate_inputs(points, color_labels, radii);
 
+    const bool use_alpha = alpha.value_or(!radii.empty());
     SimplifiedSubdivision subdivision(points, color_labels);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, alpha);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, use_alpha);
 
     return SimplifiedSurface{
         subdivision.get_midpoints(),
@@ -121,20 +122,19 @@ SimplifiedSurface compute_simplified_surface(
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
-        alpha
+        use_alpha
     };
 }
 
 SimplifiedSurface compute_simplified_surface(
     const Points& points,
     const ColorLabels& color_labels,
-    double radius,
-    bool alpha
+    double radius
 ) {
     detail::validate_inputs(points, color_labels, Radii{});
 
     SimplifiedSubdivision subdivision(points, color_labels);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius, alpha);
+    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius);
 
     return SimplifiedSurface{
         subdivision.get_midpoints(),
@@ -144,7 +144,7 @@ SimplifiedSurface compute_simplified_surface(
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
-        alpha
+        true
     };
 }
 

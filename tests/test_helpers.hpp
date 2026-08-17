@@ -15,11 +15,6 @@ struct SimplexCounts {
     size_t vertices = 0;
     size_t edges = 0;
     size_t triangles = 0;
-
-    size_t total() const { return vertices + edges + triangles; }
-    long euler_characteristic() const {
-        return static_cast<long>(vertices) - static_cast<long>(edges) + static_cast<long>(triangles);
-    }
 };
 
 inline SimplexCounts count_simplices(const delaunay_interfaces::Filtration& filtration) {

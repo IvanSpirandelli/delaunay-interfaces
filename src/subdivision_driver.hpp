@@ -24,13 +24,13 @@ inline void validate_inputs(
 
 template <class Subdivision>
 void feed_subdivision(Subdivision& subdivision, const MulticoloredSimplices& mc_simplices) {
-    for (const auto& tet : mc_simplices.generating_tetrahedra) {
+    for (const auto& tet : mc_simplices.tetrahedra) {
         subdivision.process_tetrahedron(tet);
     }
-    for (const auto& tri : mc_simplices.generating_free_triangles) {
+    for (const auto& tri : mc_simplices.free_triangles) {
         subdivision.process_simplex({tri.begin(), tri.end()});
     }
-    for (const auto& edge : mc_simplices.generating_free_edges) {
+    for (const auto& edge : mc_simplices.free_edges) {
         subdivision.process_simplex({edge.begin(), edge.end()});
     }
 }
@@ -55,12 +55,11 @@ MulticoloredSimplices run_subdivision(
     Subdivision& subdivision,
     const Points& points,
     const ColorLabels& color_labels,
-    double radius,
-    bool alpha
+    double radius
 ) {
     InterfaceGenerator generator;
     MulticoloredSimplices mc_simplices = generator.collect_multicolored_simplices(
-        points, color_labels, radius, alpha);
+        points, color_labels, radius);
     feed_subdivision(subdivision, mc_simplices);
     return mc_simplices;
 }

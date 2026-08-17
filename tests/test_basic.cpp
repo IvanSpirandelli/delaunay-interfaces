@@ -14,7 +14,7 @@ void test_chromatic_partitioning() {
     ColorLabels colors = {1, 1, 2, 2};
     Tetrahedron tet = {0, 1, 2, 3};
 
-    auto partition = get_chromatic_partitioning(tet, colors);
+    auto partition = compute_chromatic_partition(tet, colors);
 
     assert(partition.size() == 2);
     assert(partition[0].size() == 2);
@@ -30,12 +30,12 @@ void test_chromatic_partitioning_vector() {
 
     // Triangle
     std::vector<int> tri = {0, 1, 2};
-    auto partition = get_chromatic_partitioning(tri, colors);
+    auto partition = compute_chromatic_partition(tri, colors);
     assert(partition.size() == 3);
 
     // Edge
     std::vector<int> edge = {0, 1};
-    auto partition2 = get_chromatic_partitioning(edge, colors);
+    auto partition2 = compute_chromatic_partition(edge, colors);
     assert(partition2.size() == 2);
 
     std::cout << "  PASS\n";
@@ -254,11 +254,9 @@ void test_generic_combination_counts() {
         sub.process_tetrahedron({0, 1, 2, 3});
 
         auto filtration = sub.get_filtration();
-        size_t n_verts = 0, n_edges = 0, n_tris = 0;
+        size_t n_tris = 0;
         for (const auto& [simplex, val] : filtration) {
-            if (simplex.size() == 1) n_verts++;
-            else if (simplex.size() == 2) n_edges++;
-            else if (simplex.size() == 3) n_tris++;
+            if (simplex.size() == 3) n_tris++;
         }
         assert(sub.get_barycenters().size() == 9);
         assert(n_tris == 8);
@@ -354,10 +352,9 @@ void test_lower_dimensional_simplices() {
         sub.process_simplex({0, 1, 2});
 
         auto filtration = sub.get_filtration();
-        size_t n_verts = 0, n_edges = 0, n_tris = 0;
+        size_t n_edges = 0, n_tris = 0;
         for (const auto& [simplex, val] : filtration) {
-            if (simplex.size() == 1) n_verts++;
-            else if (simplex.size() == 2) n_edges++;
+            if (simplex.size() == 2) n_edges++;
             else if (simplex.size() == 3) n_tris++;
         }
         assert(sub.get_barycenters().size() == 3);
@@ -376,10 +373,9 @@ void test_lower_dimensional_simplices() {
         sub.process_simplex({0, 1, 2});
 
         auto filtration = sub.get_filtration();
-        size_t n_verts = 0, n_edges = 0, n_tris = 0;
+        size_t n_edges = 0, n_tris = 0;
         for (const auto& [simplex, val] : filtration) {
-            if (simplex.size() == 1) n_verts++;
-            else if (simplex.size() == 2) n_edges++;
+            if (simplex.size() == 2) n_edges++;
             else if (simplex.size() == 3) n_tris++;
         }
         assert(sub.get_barycenters().size() == 4);
@@ -426,8 +422,7 @@ void test_free_simplices_alpha() {
     std::cout << "Test: Free Simplices in Alpha Complex\n";
 
     // Create a point cloud where alpha filtering creates free multicolored
-    // simplices. Use large radii for nearby points (to be in alpha complex)
-    // but small radii for distant points (so their tetrahedra are excluded).
+    // simplices.
 
     // Two groups of overlapping spheres that share an interface
     // but are far enough apart that tetrahedra spanning the gap have alpha > 0.
@@ -456,18 +451,18 @@ void test_free_simplices_alpha() {
 
         // This fixture is deterministic: two multicolored alpha tetrahedra
         // plus one free multicolored edge spanning the gap between clusters.
-        assert(simplices.generating_tetrahedra.size() == 2);
-        assert(simplices.generating_free_triangles.size() == 0);
-        assert(simplices.generating_free_edges.size() == 1);
+        assert(simplices.tetrahedra.size() == 2);
+        assert(simplices.free_triangles.size() == 0);
+        assert(simplices.free_edges.size() == 1);
 
         BarycentricSubdivision sub(points, colors);
-        for (const auto& tet : simplices.generating_tetrahedra) {
+        for (const auto& tet : simplices.tetrahedra) {
             sub.process_tetrahedron(tet);
         }
-        for (const auto& tri : simplices.generating_free_triangles) {
+        for (const auto& tri : simplices.free_triangles) {
             sub.process_simplex({tri.begin(), tri.end()});
         }
-        for (const auto& edge : simplices.generating_free_edges) {
+        for (const auto& edge : simplices.free_edges) {
             sub.process_simplex({edge.begin(), edge.end()});
         }
 

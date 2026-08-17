@@ -13,24 +13,18 @@ using GeometryBasics
 
 include(joinpath(@__DIR__, "figure_utils.jl"))
 
-const CONF_COLORS = [
-    colorant"#1b9e77",  # teal
-    colorant"#d95f02",  # orange
-]
-
-data_path = joinpath(@__DIR__, "..", "tests", "data", "ground_truth_4bmg_dimer_delaunay.json")
+data_path = joinpath(@__DIR__, "..", "examples", "4bmg_dimer_atoms.json")
 protein_data = JSON.parsefile(data_path)
 
-inp = protein_data["input"]
-points = [Vector{Float64}(p) for p in inp["points"]]
-colors = Vector{Int}(inp["color_labels"])
-radii = Vector{Float64}(inp["radii"])
+points = [Vector{Float64}(p) for p in protein_data["points"]]
+colors = Vector{Int}(protein_data["color_labels"])
+radii = Vector{Float64}(protein_data["radii"])
 
 println("Protein: 4bmg_dimer")
 println("  Points: $(length(points))")
 println("  Unique colors: $(length(unique(colors)))")
 
-surface = InterfaceSurface(points, colors, radii; weighted=true, alpha=true)
+surface = InterfaceSurface(points, colors, radii)
 
 num_triangles = count(x -> length(x[1]) == 3, surface.filtration)
 println("Interface surface:")
@@ -47,7 +41,7 @@ scene_left = LScene(fig[1, 1]; show_axis=false)
 
 meshscatter!(scene_left, [Point3f(p...) for p in points];
     markersize=Float32.(display_radii),
-    color=[CONF_COLORS[mod1(c, 2)] for c in colors]
+    color=[POINT_LABEL_COLORS[mod1(c, 2)] for c in colors]
 )
 
 Label(fig[1, 1, Top()], "Atom Centers"; fontsize=18, padding=(0, 0, 10, 0))

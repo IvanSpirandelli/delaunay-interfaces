@@ -41,9 +41,9 @@ using SurfaceEdge = std::array<int32_t, 2>;
 
 // Multicolored simplices from the complex (generating tetrahedra + free lower-dimensional)
 struct MulticoloredSimplices {
-    Tetrahedra generating_tetrahedra;
-    std::vector<FreeTriangle> generating_free_triangles;
-    std::vector<FreeEdge> generating_free_edges;
+    Tetrahedra tetrahedra;
+    std::vector<FreeTriangle> free_triangles;
+    std::vector<FreeEdge> free_edges;
 };
 
 // Vertex-to-atom mapping: vertex_atom_indices[i] = sorted input atom indices for vertex i

@@ -6,7 +6,6 @@
 #include <random>
 #include <chrono>
 #include <delaunay_interfaces/interface_generation.hpp>
-#include <delaunay_interfaces/barycentric_subdivision.hpp>
 
 using namespace delaunay_interfaces;
 
