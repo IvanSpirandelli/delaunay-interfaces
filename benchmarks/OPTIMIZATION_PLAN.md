@@ -69,8 +69,11 @@ Queue below extended 2026-08-18 from a code-reading investigation
 each entry is a separately heap-allocated vector; ~25-68M transient
 allocations per run in the per-tet enumeration).
 
-- [ ] **Iter 6 — singleton emission + alpha predicate order + reserves**
-  (S, expect ~15% on 50k delaunay totals, bitwise identical):
+- [x] **Iter 6 — singleton emission + alpha predicate order + reserves**
+  (committed, fdd23cd; invariants bitwise identical; delaunay totals
+  1.20-1.29x, alpha ~1.1x, Julia cxx at 30k 1.28x, vs ~1.05-1.1x
+  collect drift on untouched paths — most of the gain is real; per-shape
+  entry counts corrected: tet 2-1-1 pushes 39 raw entries, not 38):
   (a) stop pushing per-tet vertex singletons
   (barycentric_subdivision.cpp process_simplex); emit one `({id}, value)`
   per `vertex_map_` entry in finalize_filtration instead — the sets are
