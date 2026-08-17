@@ -29,19 +29,18 @@ scripts/run_benchmarks.sh "one-liner describing the change"
   vector + sort/unique; `get_or_create_vertex` reuses `faces[i].atoms` as
   key; part barycenters computed once per new vertex (value + position),
   `face_barycenters` removed. Invariants bitwise identical (verified).
-- [ ] **Iter 2 — result-assembly moves**: move-out accessors in
-  `simplified_subdivision.cpp` / `barycentric_subdivision.cpp` result
-  assembly (currently copies from dying locals); Python bindings take
-  `InterfaceSurface&&` / `SimplifiedSurface&&` and `std::move` members;
-  `std::move(filtration)` in `compute_barycentric_..._py` returns.
-  Expect wins mainly in total_ms at large N; invariants must stay bitwise.
-- [ ] **Iter 3 — Julia FFI boundary**: use the existing bulk
-  `get_all_vertices` in the wrapper constructor (`reshape`); add bulk flat
-  accessors for the filtration (follow `get_vertex_atom_indices_flat`
-  pattern) and decode in one pass; drop per-element `get_vertex` /
-  `get_simplex_vertices` / `get_simplex_value` loops. Measured by the
-  `julia_boundary` section (wrapper_ms was ~26% of cxx_ms at 30k).
-  Invariants bitwise.
+- [x] **Iter 2 — result-assembly moves** (committed, f2f34af): take_*
+  accessors on both subdivision classes; Python binding wrappers take the
+  surface by rvalue and move members. Invariants bitwise identical.
+  1.3-1.6x on copy-heavy pipelines; cumulative 2.0-2.4x on 50k
+  full-Delaunay scenarios, Julia-side cxx call 15.1s -> 6.3s at 30k.
+- [x] **Iter 3 — Julia FFI boundary** (committed, 08e3573): wrapper
+  constructor uses bulk get_all_vertices plus new flat filtration
+  accessors (get_all_simplex_vertices_flat / get_all_simplex_values),
+  decoded in one pass; per-element accessors remain bound. Wrapper output
+  verified element-identical. wrapper_ms 7.9x faster at 1k, ~2x at
+  10k-30k (remaining cost is per-simplex Julia allocations, inherent to
+  the public Vector-of-Vectors field types).
 - [ ] **Iter 4 — spatial-sorted range insert** for plain and weighted
   Delaunay paths in `interface_generation.cpp` (alpha paths already do
   this). NOTE: traversal order changes relabel vertex ids, so the

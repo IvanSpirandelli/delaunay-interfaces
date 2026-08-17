@@ -1,11 +1,28 @@
-// Benchmark suite: random point clouds in the unit cube at several densities,
-// two color modes (all-distinct: subdivision-heavy; 2 colors: construction-
-// heavy). Per point cloud the full unweighted Delaunay interface is computed
-// once and its median filtration value L taken as the data-derived length
-// scale (the maximum is dominated by boundary slivers and yields near-full
-// alpha complexes); alpha complexes are then benchmarked at radius L/2 and
-// L/4 — uniform (scalar radius) and weighted (heterogeneous radii drawn
-// around the scale, so hidden points and weighted predicates are exercised).
+// Benchmark suite: deterministic random point clouds in the unit cube at
+// several densities, in two color modes — "distinct" (every point its own
+// color, so every tetrahedron is multicolored: subdivision-heavy) and "two"
+// (alternating labels, as in two-chain protein inputs: construction-heavy).
+//
+// Radii are derived from the data so that every density yields meaningfully
+// partial alpha complexes. For each cloud the full unweighted Delaunay
+// interface is computed once and L is set to the median of its filtration
+// values. Filtration values are distances between part barycenters, so L
+// tracks the typical point spacing (~ n^(-1/3) in the unit cube); the median
+// is used because the distribution's tail comes from boundary slivers, whose
+// scale would make the alpha complexes nearly full. Scenario names carry the
+// radius scale s = L/2 ("half") or s = L/4 ("quarter"):
+//
+//   delaunay              plain Delaunay triangulation, no radii
+//   delaunay_weighted_*   per-point radii ~ U(0.8 s, 1.2 s), alpha=false:
+//                         the full regular triangulation — radii act only
+//                         as weights, nothing is filtered away
+//   alpha_weighted_*      the same radii with alpha=true: weighted alpha
+//                         complex at scale s
+//   alpha_uniform_*       single scalar radius s via the uniform-alpha
+//                         overload (alpha parameter s^2)
+//
+// The +-20% jitter on the weighted radii keeps those paths honest (hidden
+// points, weighted predicates) instead of degenerating to uniform weights.
 //
 // Per scenario the collect phase (triangulation + multicolored simplex
 // collection) and the full pipeline are timed separately (median of repeats),
