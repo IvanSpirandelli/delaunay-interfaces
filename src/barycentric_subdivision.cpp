@@ -66,26 +66,6 @@ bool is_subset(const std::vector<int>& small, const std::vector<int>& big) {
     return std::includes(big.begin(), big.end(), small.begin(), small.end());
 }
 
-// Barycenter positions per combination: the centroid of the barycenters of
-// the parts of the combination's sub-partition. This equals the flat average
-// of the original points only when all chosen parts have equal size (e.g.
-// 1-1, 2-2); for unequal part sizes (2-1, 3-1, ...) it differs.
-std::vector<Point3D> face_barycenters(
-    const std::vector<MulticoloredFace>& faces,
-    const Points& points
-) {
-    std::vector<Point3D> barycenters;
-    barycenters.reserve(faces.size());
-    for (const auto& face : faces) {
-        Point3D sum = Point3D::Zero();
-        for (const auto& part : face.parts) {
-            sum += compute_barycenter(points, part);
-        }
-        barycenters.push_back(sum / static_cast<double>(face.parts.size()));
-    }
-    return barycenters;
-}
-
 // Maximal chains of faces under flat-set inclusion, one element per
 // level. Only defined when there are >= 3 distinct levels; each chain becomes
 // a higher-dimensional simplex of the subdivision.
@@ -147,10 +127,22 @@ Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices)
     return compute_barycenter(points_, vertices);
 }
 
-double BarycentricSubdivision::compute_filtration_value(const Partition& partition) const {
-    const size_t k = partition.size();
-    if (k < 2) return 0.0;
+// Barycenter position per combination: the centroid of the barycenters of
+// the parts of the combination's sub-partition. This equals the flat average
+// of the original points only when all chosen parts have equal size (e.g.
+// 1-1, 2-2); for unequal part sizes (2-1, 3-1, ...) it differs.
+BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
+    const Partition& partition,
+    const std::vector<int>& atoms
+) {
+    auto it = vertex_map_.lower_bound(atoms);
+    if (it != vertex_map_.end() && it->first == atoms) {
+        return VertexInfo{it->second.first, it->second.second};
+    }
 
+    // The part barycenters yield both the filtration value (mean pairwise
+    // distance; faces always choose >= 2 parts) and the vertex position.
+    const size_t k = partition.size();
     std::vector<Point3D> bcs;
     bcs.reserve(k);
     for (const auto& part : partition) {
@@ -158,32 +150,19 @@ double BarycentricSubdivision::compute_filtration_value(const Partition& partiti
     }
 
     double sum = 0.0;
+    Point3D centroid = Point3D::Zero();
     for (size_t i = 0; i < k; ++i) {
+        centroid += bcs[i];
         for (size_t j = i + 1; j < k; ++j) {
             sum += euclidean_distance(bcs[i], bcs[j]);
         }
     }
-    return sum / (k * (k - 1) / 2.0);
-}
-
-BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
-    const Partition& partition
-) {
-    std::vector<int> key;
-    for (const auto& part : partition) {
-        key.insert(key.end(), part.begin(), part.end());
-    }
-    std::sort(key.begin(), key.end());
-
-    auto it = vertex_map_.lower_bound(key);
-    if (it != vertex_map_.end() && it->first == key) {
-        return VertexInfo{it->second.first, it->second.second, false};
-    }
+    double value = sum / (k * (k - 1) / 2.0);
+    barycenters_.push_back(centroid / static_cast<double>(k));
 
     int32_t id = next_vertex_id_++;
-    double value = compute_filtration_value(partition);
-    vertex_map_.emplace_hint(it, std::move(key), std::make_pair(id, value));
-    return VertexInfo{id, value, true};
+    vertex_map_.emplace_hint(it, atoms, std::make_pair(id, value));
+    return VertexInfo{id, value};
 }
 
 void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
@@ -194,18 +173,9 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
     const size_t n = faces.size();
 
     std::vector<std::pair<int32_t, double>> vertices(n);
-    std::vector<char> created(n);
     for (size_t i = 0; i < n; ++i) {
-        auto info = get_or_create_vertex(faces[i].parts);
+        auto info = get_or_create_vertex(faces[i].parts, faces[i].atoms);
         vertices[i] = {info.id, info.value};
-        created[i] = info.newly_created;
-    }
-
-    auto new_barycenters = face_barycenters(faces, points_);
-    for (size_t i = 0; i < n; ++i) {
-        if (created[i]) {
-            barycenters_.push_back(new_barycenters[i]);
-        }
     }
 
     // Edges: one per strict inclusion between the faces' atom sets.
@@ -214,7 +184,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
             if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
                 SurfaceSimplex edge = {vertices[i].first, vertices[j].first};
                 std::sort(edge.begin(), edge.end());
-                filtration_set_.insert({edge, star_value(vertices[i].second, vertices[j].second)});
+                filtration_.emplace_back(std::move(edge), star_value(vertices[i].second, vertices[j].second));
             }
         }
     }
@@ -227,11 +197,11 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
             vals.push_back(vertices[idx].second);
         }
         std::sort(simplex.begin(), simplex.end());
-        filtration_set_.insert({simplex, star_value(vals)});
+        filtration_.emplace_back(std::move(simplex), star_value(vals));
     }
 
     for (const auto& [id, val] : vertices) {
-        filtration_set_.insert({{id}, val});
+        filtration_.emplace_back(SurfaceSimplex{id}, val);
     }
 }
 
@@ -247,19 +217,24 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
     return result;
 }
 
-Filtration BarycentricSubdivision::get_filtration() const {
-    Filtration result(filtration_set_.begin(), filtration_set_.end());
-
-    std::sort(result.begin(), result.end(),
+Filtration BarycentricSubdivision::get_filtration() {
+    // Sort by (dimension, value) with the simplex itself as a total-order
+    // tiebreak, making the output deterministic and equal entries adjacent
+    // so unique can drop the duplicates from shared faces.
+    std::sort(filtration_.begin(), filtration_.end(),
         [](const auto& a, const auto& b) {
             if (std::get<0>(a).size() != std::get<0>(b).size()) {
                 return std::get<0>(a).size() < std::get<0>(b).size();
             }
-            return std::get<1>(a) < std::get<1>(b);
+            if (std::get<1>(a) != std::get<1>(b)) {
+                return std::get<1>(a) < std::get<1>(b);
+            }
+            return std::get<0>(a) < std::get<0>(b);
         }
     );
+    filtration_.erase(std::unique(filtration_.begin(), filtration_.end()), filtration_.end());
 
-    return result;
+    return filtration_;
 }
 
 std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(

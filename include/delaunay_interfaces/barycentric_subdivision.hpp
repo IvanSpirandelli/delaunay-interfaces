@@ -2,7 +2,6 @@
 
 #include "types.hpp"
 #include <map>
-#include <set>
 
 namespace delaunay_interfaces {
 
@@ -17,7 +16,10 @@ public:
     void process_simplex(const std::vector<int>& simplex_vertices);
 
     [[nodiscard]] const Points& get_barycenters() const { return barycenters_; }
-    [[nodiscard]] Filtration get_filtration() const;
+
+    // Sorts and deduplicates the accumulated entries in place, then returns
+    // a copy; safe to call repeatedly.
+    [[nodiscard]] Filtration get_filtration();
 
     // Atom indices for each barycenter vertex, ordered by vertex ID.
     // vertex_atom_indices[i] = sorted list of input atom indices that vertex i is the barycenter of.
@@ -27,12 +29,13 @@ private:
     struct VertexInfo {
         int32_t id;
         double value;
-        bool newly_created;
     };
 
     Point3D get_barycenter(const std::vector<int>& vertices) const;
-    double compute_filtration_value(const Partition& partition) const;
-    VertexInfo get_or_create_vertex(const Partition& partition);
+
+    // atoms must be the sorted union of the partition's parts; it doubles as
+    // the vertex-map key. Creation also appends the vertex's barycenter.
+    VertexInfo get_or_create_vertex(const Partition& partition, const std::vector<int>& atoms);
 
     // Upper star (default) takes the minimum over values, lower star the maximum.
     double star_value(double a, double b) const;
@@ -47,7 +50,10 @@ private:
     std::map<std::vector<int>, std::pair<int32_t, double>> vertex_map_;
     int32_t next_vertex_id_ = 0;
 
-    std::set<FiltrationEntry> filtration_set_;
+    // May hold duplicates from shared faces of adjacent tetrahedra; duplicate
+    // entries are exact copies (values derive from the vertex ids alone), so
+    // get_filtration's sort + unique removes them.
+    Filtration filtration_;
 };
 
 } // namespace delaunay_interfaces
