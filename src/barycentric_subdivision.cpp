@@ -207,10 +207,6 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
         std::sort(simplex.begin(), simplex.end());
         filtration_.emplace_back(std::move(simplex), star_value(vals));
     }
-
-    for (const auto& [id, val] : vertices) {
-        filtration_.emplace_back(SurfaceSimplex{id}, val);
-    }
 }
 
 void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
@@ -233,6 +229,18 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
 // tiebreak, making the output deterministic and equal entries adjacent
 // so unique can drop the duplicates from shared faces.
 void BarycentricSubdivision::finalize_filtration() {
+    // Vertex singletons are emitted here, once, instead of per processed
+    // simplex: every map entry was created for some simplex that would have
+    // pushed its singleton, so the entry set (and hence the sorted, deduped
+    // output) is unchanged.
+    if (!singletons_emitted_) {
+        filtration_.reserve(filtration_.size() + vertex_map_.size());
+        for (const auto& [key, id_val] : vertex_map_) {
+            (void)key;
+            filtration_.emplace_back(SurfaceSimplex{id_val.first}, id_val.second);
+        }
+        singletons_emitted_ = true;
+    }
     std::sort(filtration_.begin(), filtration_.end(),
         [](const auto& a, const auto& b) {
             if (std::get<0>(a).size() != std::get<0>(b).size()) {

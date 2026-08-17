@@ -16,6 +16,10 @@ public:
     void process_tetrahedron(const Tetrahedron& tet);
     void process_simplex(const std::vector<int>& simplex_vertices);
 
+    // Capacity hint from the shared subdivision driver; the counts it passes
+    // are the barycentric construction's, so this is a no-op here.
+    void reserve(size_t /*vertices*/, size_t /*entries*/) {}
+
     [[nodiscard]] const Points& get_midpoints() const { return midpoints_; }
     [[nodiscard]] const std::vector<SurfaceTriangle>& get_triangles() const { return triangles_; }
     [[nodiscard]] const std::vector<SurfaceQuad>& get_quads() const { return quads_; }

@@ -124,10 +124,9 @@ static MulticoloredSimplices collect_from_alpha_shape(
     result.tetrahedra = collect_multicolored_tetrahedra(as, color_labels,
         [&as](const auto& cit) { return as.classify(cit) != AlphaShape::EXTERIOR; });
 
-    // Free multicolored triangles.
+    // Free multicolored triangles. The cheap multicolor test runs before
+    // classify, which is a map lookup per facet in GENERAL mode.
     for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
-        if (as.classify(*fit) != AlphaShape::SINGULAR) continue;
-
         auto cell = fit->first;
         int face_idx = fit->second;
         FreeTriangle tri;
@@ -136,20 +135,20 @@ static MulticoloredSimplices collect_from_alpha_shape(
             if (i == face_idx) continue;
             tri[k++] = cell->vertex(i)->info();
         }
+        if (!is_multicolored(tri, color_labels)) continue;
 
-        if (is_multicolored(tri, color_labels)) {
+        if (as.classify(*fit) == AlphaShape::SINGULAR) {
             result.free_triangles.push_back(tri);
         }
     }
 
-    // Free multicolored edges.
+    // Free multicolored edges, multicolor test first as above.
     for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
-        if (as.classify(*eit) != AlphaShape::SINGULAR) continue;
-
         auto cell = eit->first;
         FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
+        if (!is_multicolored(edge, color_labels)) continue;
 
-        if (is_multicolored(edge, color_labels)) {
+        if (as.classify(*eit) == AlphaShape::SINGULAR) {
             result.free_edges.push_back(edge);
         }
     }

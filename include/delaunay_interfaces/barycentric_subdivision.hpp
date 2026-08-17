@@ -17,6 +17,14 @@ public:
     // Generic over simplex dimension: works for edges, triangles, and tetrahedra.
     void process_simplex(const std::vector<int>& simplex_vertices);
 
+    // Capacity hint before processing: expected vertex count (an upper bound
+    // is fine) and non-singleton filtration entries to be pushed.
+    void reserve(size_t vertices, size_t entries) {
+        barycenters_.reserve(vertices);
+        vertex_map_.reserve(vertices);
+        filtration_.reserve(entries);
+    }
+
     [[nodiscard]] const Points& get_barycenters() const { return barycenters_; }
 
     // Sorts and deduplicates the accumulated entries in place, then returns
@@ -76,8 +84,10 @@ private:
 
     // May hold duplicates from shared faces of adjacent tetrahedra; duplicate
     // entries are exact copies (values derive from the vertex ids alone), so
-    // get_filtration's sort + unique removes them.
+    // get_filtration's sort + unique removes them. Vertex singletons are
+    // appended by finalize_filtration (exactly once, see flag below).
     Filtration filtration_;
+    bool singletons_emitted_ = false;
 };
 
 } // namespace delaunay_interfaces
