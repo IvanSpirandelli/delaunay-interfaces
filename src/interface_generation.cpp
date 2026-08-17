@@ -99,6 +99,16 @@ static std::vector<IndexedWeightedPoint> make_indexed_weighted_points(
     return wpoints;
 }
 
+static std::vector<IndexedPoint> make_indexed_points(const Points& points) {
+    std::vector<IndexedPoint> ipoints;
+    ipoints.reserve(points.size());
+    for (size_t i = 0; i < points.size(); ++i) {
+        const auto& p = points[i];
+        ipoints.emplace_back(Kernel::Point_3(p.x(), p.y(), p.z()), static_cast<int>(i));
+    }
+    return ipoints;
+}
+
 // Multicolored simplices of an alpha complex (weighted or unweighted).
 // Free simplices are exactly the SINGULAR ones: in the alpha complex but
 // not a face of any higher-dimensional simplex of the complex. (A
@@ -147,16 +157,16 @@ static MulticoloredSimplices collect_from_alpha_shape(
     return result;
 }
 
+// Both constructions use CGAL's range insert on (point, index) pairs, which
+// Hilbert-sorts the input first — much faster than inserting unordered
+// points one at a time, and it attaches the info (and drops hidden points'
+// info, for the regular triangulation) itself.
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_delaunay(
     const Points& points,
     const ColorLabels& color_labels
 ) const {
-    DelaunayTriangulation dt;
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& p = points[i];
-        auto vh = dt.insert(Kernel::Point_3(p.x(), p.y(), p.z()));
-        vh->info() = static_cast<int>(i);
-    }
+    auto ipoints = make_indexed_points(points);
+    DelaunayTriangulation dt(ipoints.begin(), ipoints.end());
 
     MulticoloredSimplices result;
     result.tetrahedra = collect_multicolored_tetrahedra(dt, color_labels);
@@ -168,16 +178,8 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     const ColorLabels& color_labels,
     const Radii& radii
 ) const {
-    RegularTriangulation rt;
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& p = points[i];
-        WeightedPoint wp(Kernel::Point_3(p.x(), p.y(), p.z()), radii[i] * radii[i]);
-        auto vh = rt.insert(wp);
-        // Points hidden by the regular triangulation yield a null handle.
-        if (vh != RegularTriangulation::Vertex_handle()) {
-            vh->info() = static_cast<int>(i);
-        }
-    }
+    auto wpoints = make_indexed_weighted_points(points, radii);
+    RegularTriangulation rt(wpoints.begin(), wpoints.end());
 
     MulticoloredSimplices result;
     result.tetrahedra = collect_multicolored_tetrahedra(rt, color_labels);
@@ -203,12 +205,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_uniform
     const ColorLabels& color_labels,
     double radius
 ) const {
-    std::vector<IndexedPoint> ipoints;
-    ipoints.reserve(points.size());
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& p = points[i];
-        ipoints.emplace_back(Kernel::Point_3(p.x(), p.y(), p.z()), static_cast<int>(i));
-    }
+    auto ipoints = make_indexed_points(points);
     UnweightedAlphaShape as(ipoints.begin(), ipoints.end(), radius * radius,
                             UnweightedAlphaShape::GENERAL);
     return collect_from_alpha_shape(as, color_labels);
