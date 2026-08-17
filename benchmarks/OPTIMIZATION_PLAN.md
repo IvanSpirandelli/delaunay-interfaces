@@ -41,14 +41,16 @@ scripts/run_benchmarks.sh "one-liner describing the change"
   verified element-identical. wrapper_ms 7.9x faster at 1k, ~2x at
   10k-30k (remaining cost is per-simplex Julia allocations, inherent to
   the public Vector-of-Vectors field types).
-- [ ] **Iter 4 — spatial-sorted range insert** for plain and weighted
-  Delaunay paths in `interface_generation.cpp` (alpha paths already do
-  this). NOTE: traversal order changes relabel vertex ids, so the
-  filtration's tie order may permute — counts and filtration_sum stay
-  identical (output is value-sorted; ties share equal values), but a raw
-  diff of simplex ids against old output is not expected to match.
-  Affects collect_ms; baseline says this is a modest win (collect is
-  ~3-30% of total depending on scenario).
+- [x] **Iter 4 — spatial-sorted range insert** (committed, 76c8454) for
+  plain and weighted Delaunay paths in `interface_generation.cpp` (alpha
+  paths already do this). Counts identical to baseline; filtration_sum
+  identical except one last-ulp deviation (20000/two/
+  delaunay_weighted_half), the expected summation-order effect of
+  permuted equal-value ties. collect_ms 1.5-2.5x on delaunay scenarios
+  (50k distinct: 319 -> 130 ms); untouched alpha scenarios within the
+  run's ±15% noise band. Benchmarked with two unrelated processes
+  pegging 2 of 12 cores (stuck Julia LSP indexer + busy IJulia kernel);
+  a first, discarded run with 3 pegged cores was uniformly ~2x slow.
 - [ ] **Iter 5 (optional) — vertex_map_ key packing**: `std::map` with
   `vector<int>` keys → packed fixed-size key (≤ 4 atoms) in a hash map.
   Vertex ids are assigned in creation order (map order unused), so output
