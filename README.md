@@ -137,9 +137,12 @@ gen = di.InterfaceGenerator()
 surface = gen.compute_interface_surface(points, colors)
 
 # Or with radii for weighted alpha complex
-# (weighted and alpha default to True whenever radii are given)
+# (alpha defaults to True whenever radii are given)
 radii = [0.5, 0.5, 0.5, 0.5]
 surface = gen.compute_interface_surface(points, colors, radii)
+
+# Or with a single radius for the uniform alpha complex (parameter radius^2)
+surface = gen.compute_interface_surface(points, colors, radius=0.5)
 
 # surface.vertices: Nx3 numpy array of barycenter coordinates
 # surface.filtration: list of (simplex_indices, filtration_value) pairs
@@ -160,11 +163,15 @@ colors = [1, 1, 2, 2]
 surface = InterfaceSurface(points, colors)
 
 # Or with radii for weighted alpha complex
+# (alpha defaults to true whenever radii are given)
 radii = [0.5, 0.5, 0.5, 0.5]
 surface = InterfaceSurface(points, colors, radii)
 
-# Explicit options
-surface = InterfaceSurface(points, colors, radii; weighted=true, alpha=false)
+# Weighted Delaunay without alpha filtering
+surface = InterfaceSurface(points, colors, radii; alpha=false)
+
+# Or with a single radius for the uniform alpha complex (parameter radius^2)
+surface = InterfaceSurface(points, colors, 0.5)
 
 # surface.vertices: Vector of 3D coordinates
 # surface.filtration: Vector of (simplex, value) tuples
@@ -184,6 +191,9 @@ auto surface = gen.compute_interface_surface(points, colors);
 
 // Weighted alpha complex
 auto weighted_surface = gen.compute_interface_surface(points, colors, radii);
+
+// Uniform alpha complex from a single radius (parameter radius^2)
+auto uniform_surface = gen.compute_interface_surface(points, colors, 0.5);
 ```
 
 ## Dependencies

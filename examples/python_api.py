@@ -58,7 +58,6 @@ def main():
 
     print(f"  Barycenters: {len(surface.vertices)}")
     print(f"  Filtration simplices: {len(surface.filtration)}")
-    print(f"  Weighted: {surface.weighted}")
     print(f"  Alpha: {surface.alpha}")
     print()
 
@@ -103,6 +102,13 @@ def main():
     n_alp = len(surface_alp.vertices)
     t_alp = sum(1 for s, v in surface_alp.filtration if len(s) == 3)
     print(f"  Weighted Alpha:       {n_alp} barycenters, {t_alp} triangles")
+
+    # Uniform Alpha: a single radius builds the alpha complex with parameter
+    # radius^2 (same surface as uniform per-point radii, cheaper to construct)
+    surface_uni = gen.compute_interface_surface(points, colors, radius=0.5)
+    n_uni = len(surface_uni.vertices)
+    t_uni = sum(1 for s, v in surface_uni.filtration if len(s) == 3)
+    print(f"  Uniform Alpha:        {n_uni} barycenters, {t_uni} triangles")
 
     print()
     print("Done!")

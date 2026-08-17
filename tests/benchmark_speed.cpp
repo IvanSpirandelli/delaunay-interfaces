@@ -40,11 +40,11 @@ InputData generate_input(size_t n, unsigned seed = 42) {
     return data;
 }
 
-TimingResult run_test(const InputData& data, bool weighted, bool alpha) {
+TimingResult run_test(const InputData& data, bool alpha) {
     auto start = std::chrono::high_resolution_clock::now();
 
     auto [verts, filtration, mc_simplices, vai] = compute_barycentric_subdivision_and_filtration(
-        data.points, data.colors, data.radii, weighted, alpha);
+        data.points, data.colors, data.radii, alpha);
 
     auto end = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(end - start).count();
@@ -70,8 +70,8 @@ int main() {
     for (size_t n : {10, 100, 1000, 10000, 25000, 50000}) {
         auto data = generate_input(n);
 
-        print_row(std::to_string(n), "Delaunay", run_test(data, true, false));
-        print_row("", "Alpha", run_test(data, true, true));
+        print_row(std::to_string(n), "Delaunay", run_test(data, false));
+        print_row("", "Alpha", run_test(data, true));
 
         std::cout << "  ---------|--------------|----------|------------|----------\n";
     }

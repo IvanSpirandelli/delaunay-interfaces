@@ -41,7 +41,6 @@ function main()
 
     println("  Barycenters: ", length(surface.vertices))
     println("  Filtration simplices: ", length(surface.filtration))
-    println("  Weighted: ", surface.weighted)
     println("  Alpha: ", surface.alpha)
     println()
 
@@ -77,17 +76,24 @@ function main()
     t_del = length(get_triangles(surface_delaunay))
     println("  Unweighted Delaunay:  $n_del barycenters, $t_del triangles")
 
-    # Weighted Delaunay
-    surface_weighted = InterfaceSurface(points, colors, radii; weighted=true, alpha=false)
+    # Weighted Delaunay (radii without alpha filtering)
+    surface_weighted = InterfaceSurface(points, colors, radii; alpha=false)
     n_wei = length(surface_weighted.vertices)
     t_wei = length(get_triangles(surface_weighted))
     println("  Weighted Delaunay:    $n_wei barycenters, $t_wei triangles")
 
-    # Weighted Alpha
-    surface_alpha = InterfaceSurface(points, colors, radii; weighted=true, alpha=true)
+    # Weighted Alpha (default when radii are given)
+    surface_alpha = InterfaceSurface(points, colors, radii)
     n_alp = length(surface_alpha.vertices)
     t_alp = length(get_triangles(surface_alpha))
     println("  Weighted Alpha:       $n_alp barycenters, $t_alp triangles")
+
+    # Uniform Alpha: a single radius builds the alpha complex with parameter
+    # radius^2 (same surface as uniform per-point radii, cheaper to construct)
+    surface_uniform = InterfaceSurface(points, colors, 0.5)
+    n_uni = length(surface_uniform.vertices)
+    t_uni = length(get_triangles(surface_uniform))
+    println("  Uniform Alpha:        $n_uni barycenters, $t_uni triangles")
 
     println()
 
@@ -95,7 +101,7 @@ function main()
     println("Example 4: Get multicolored tetrahedra")
     println("-" ^ 50)
 
-    mc_tets = get_multicolored_tetrahedra_wrapper(points, colors; weighted=false, alpha=false)
+    mc_tets = get_multicolored_tetrahedra_wrapper(points, colors)
 
     println("  Number of multicolored tetrahedra: ", size(mc_tets, 1))
     if size(mc_tets, 1) > 0
