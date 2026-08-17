@@ -85,8 +85,11 @@ allocations per run in the per-tet enumeration).
   `reserve()` for filtration_/barycenters_/vertex_map_: entry and
   vertex-per-tet counts are exact functions of the partition shape, so
   a cheap pre-pass over mc_simplices gives capacities.
-- [ ] **Iter 7 — POD filtration accumulator + dim buckets** (M, expect
-  25-40% on 50k delaunay, bitwise identical): accumulate
+- [x] **Iter 7 — POD filtration accumulator + dim buckets** (committed,
+  d33b49f; invariants bitwise identical; subdivision median 1.51x vs
+  ~1.1x untouched-path drift, delaunay totals 1.4-1.6x, Julia cxx at
+  30k 1.39x and wrapper 1.7x as a side effect of the cached
+  materialized filtration; reserve() now takes per-dim counts): accumulate
   `{double value; int32_t v[3]; int32_t dim}` (every emitted simplex has
   <= 3 vertices: one chain level per distinct atom-set size in {2,3,4});
   sort+unique three per-dimension buckets (emit sites know dim);
