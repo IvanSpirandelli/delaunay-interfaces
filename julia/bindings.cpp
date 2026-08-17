@@ -71,6 +71,25 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             }
             return std::get<1>(s.filtration[i]);
         })
+        .method("get_all_simplex_vertices_flat", [](const InterfaceSurface& s) {
+            // [k_0, v_0_0, ..., k_1, v_1_0, ...] per filtration entry,
+            // in the same entry order as get_all_simplex_values.
+            std::vector<int32_t> result;
+            result.reserve(s.filtration.size() * 4);
+            for (const auto& [simplex, value] : s.filtration) {
+                result.push_back(static_cast<int32_t>(simplex.size()));
+                result.insert(result.end(), simplex.begin(), simplex.end());
+            }
+            return result;
+        })
+        .method("get_all_simplex_values", [](const InterfaceSurface& s) {
+            std::vector<double> result;
+            result.reserve(s.filtration.size());
+            for (const auto& [simplex, value] : s.filtration) {
+                result.push_back(value);
+            }
+            return result;
+        })
         .method("num_generating_tetrahedra", [](const InterfaceSurface& s) {
             return static_cast<int>(s.generating_simplices.tetrahedra.size());
         })

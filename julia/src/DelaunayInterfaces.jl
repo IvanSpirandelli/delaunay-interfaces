@@ -20,6 +20,7 @@ export InterfaceGenerator, InterfaceSurfaceCxx
 export compute_interface_surface, get_multicolored_tetrahedra
 export num_vertices, num_simplices, is_alpha
 export get_vertex, get_all_vertices, get_simplex_vertices, get_simplex_value
+export get_all_simplex_vertices_flat, get_all_simplex_values
 export num_generating_tetrahedra, get_all_generating_tetrahedra
 export num_generating_free_triangles, get_all_generating_free_triangles
 export num_generating_free_edges, get_all_generating_free_edges
@@ -56,20 +57,23 @@ struct InterfaceSurface
 end
 
 function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
-    # Extract vertices
+    # Extract vertices via one bulk FFI call (flat [x1,y1,z1,x2,...])
     n_verts = num_vertices(cxx_surface)
-    vertices = Vector{Vector{Float64}}(undef, n_verts)
-    for i in 0:(n_verts - 1)
-        vertices[i + 1] = collect(get_vertex(cxx_surface, i))
-    end
+    flat_verts = collect(get_all_vertices(cxx_surface))
+    vertices = [flat_verts[3i-2:3i] for i in 1:n_verts]
 
-    # Extract filtration (convert 0-based C++ indices to 1-based Julia indices)
+    # Extract filtration from two bulk arrays (convert 0-based C++ indices
+    # to 1-based Julia indices)
     n_simplices = num_simplices(cxx_surface)
+    flat_simplices = collect(get_all_simplex_vertices_flat(cxx_surface))
+    simplex_values = collect(get_all_simplex_values(cxx_surface))
     filtration = Vector{Tuple{Vector{Int32}, Float64}}(undef, n_simplices)
-    for i in 0:(n_simplices - 1)
-        simplex_verts = collect(get_simplex_vertices(cxx_surface, i)) .+ Int32(1)
-        simplex_val = get_simplex_value(cxx_surface, i)
-        filtration[i + 1] = (simplex_verts, simplex_val)
+    idx = 1
+    for i in 1:n_simplices
+        k = flat_simplices[idx]
+        idx += 1
+        filtration[i] = (flat_simplices[idx:idx+k-1] .+ Int32(1), simplex_values[i])
+        idx += k
     end
 
     # Extract multicolored simplices (convert 0-based to 1-based)
