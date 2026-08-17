@@ -39,9 +39,6 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
         .method("num_simplices", [](const InterfaceSurface& s) {
             return static_cast<int>(s.filtration.size());
         })
-        .method("is_weighted", [](const InterfaceSurface& s) {
-            return s.weighted;
-        })
         .method("is_alpha", [](const InterfaceSurface& s) {
             return s.alpha;
         })

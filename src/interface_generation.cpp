@@ -268,7 +268,7 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     );
 
     return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
-                            std::move(vertex_atom_indices), !radii.empty(), alpha, lower_star};
+                            std::move(vertex_atom_indices), alpha, lower_star};
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(
@@ -283,7 +283,7 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     );
 
     return InterfaceSurface{std::move(vertices), std::move(filtration), std::move(simplices),
-                            std::move(vertex_atom_indices), false, alpha, lower_star};
+                            std::move(vertex_atom_indices), alpha, lower_star};
 }
 
 InterfaceSurface InterfaceGenerator::compute_interface_surface(

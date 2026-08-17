@@ -33,7 +33,6 @@ struct InterfaceSurfacePy {
     std::vector<FreeTriangle> generating_free_triangles;
     std::vector<FreeEdge> generating_free_edges;
     VertexAtomIndices vertex_atom_indices;
-    bool weighted;
     bool alpha;
     bool lower_star;
 
@@ -44,7 +43,6 @@ struct InterfaceSurfacePy {
         , generating_free_triangles(surface.generating_simplices.generating_free_triangles)
         , generating_free_edges(surface.generating_simplices.generating_free_edges)
         , vertex_atom_indices(surface.vertex_atom_indices)
-        , weighted(surface.weighted)
         , alpha(surface.alpha)
         , lower_star(surface.lower_star) {}
 };
@@ -114,7 +112,6 @@ struct SimplifiedSurfacePy {
     Tetrahedra generating_tetrahedra;
     std::vector<FreeTriangle> generating_free_triangles;
     std::vector<FreeEdge> generating_free_edges;
-    bool weighted;
     bool alpha;
 
     SimplifiedSurfacePy(const SimplifiedSurface& surface)
@@ -127,7 +124,6 @@ struct SimplifiedSurfacePy {
         , generating_tetrahedra(surface.generating_simplices.generating_tetrahedra)
         , generating_free_triangles(surface.generating_simplices.generating_free_triangles)
         , generating_free_edges(surface.generating_simplices.generating_free_edges)
-        , weighted(surface.weighted)
         , alpha(surface.alpha) {}
 };
 
@@ -198,8 +194,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "Generating free multicolored edges not covered by tetrahedra or triangles")
         .def_readonly("vertex_atom_indices", &InterfaceSurfacePy::vertex_atom_indices,
             "For each barycenter vertex, the sorted list of input atom indices it is the barycenter of")
-        .def_readonly("weighted", &InterfaceSurfacePy::weighted,
-            "Whether weighted Delaunay/alpha complex was used")
         .def_readonly("alpha", &InterfaceSurfacePy::alpha,
             "Whether alpha complex was used")
         .def_readonly("lower_star", &InterfaceSurfacePy::lower_star,
@@ -311,7 +305,6 @@ PYBIND11_MODULE(delaunay_interfaces, m) {
             "Generating free multicolored triangles")
         .def_readonly("generating_free_edges", &SimplifiedSurfacePy::generating_free_edges,
             "Generating free multicolored edges")
-        .def_readonly("weighted", &SimplifiedSurfacePy::weighted)
         .def_readonly("alpha", &SimplifiedSurfacePy::alpha);
 
     m.def("compute_barycentric_subdivision_and_filtration",

@@ -247,7 +247,6 @@ void test_compute_simplified_surface_delaunay() {
     assert(surface.quads.size() == 1);
     assert(surface.edges.size() == 0);
     assert(surface.generating_simplices.generating_tetrahedra.size() == 3);
-    assert(surface.weighted == false);
     assert(surface.alpha == false);
 
     // Every vertex should have exactly 2 atom indices
@@ -290,7 +289,6 @@ void test_compute_simplified_surface_weighted_alpha() {
     assert(surface.triangles.size() == 1);
     assert(surface.quads.size() == 0);
     assert(surface.edges.size() == 2);
-    assert(surface.weighted == true);
     assert(surface.alpha == true);
 
     for (const auto& atoms : surface.vertex_atom_indices) {

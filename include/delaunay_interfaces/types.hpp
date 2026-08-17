@@ -54,7 +54,6 @@ struct InterfaceSurface {
     Filtration filtration;
     MulticoloredSimplices generating_simplices;
     VertexAtomIndices vertex_atom_indices;
-    bool weighted;
     bool alpha;
     bool lower_star;
 };
@@ -68,7 +67,6 @@ struct SimplifiedSurface {
     VertexAtomIndices vertex_atom_indices;    // Each entry has exactly 2 atom indices
     std::vector<double> vertex_filtration;   // Filtration value per vertex
     MulticoloredSimplices generating_simplices; // Generating input simplices
-    bool weighted;
     bool alpha;
 };
 

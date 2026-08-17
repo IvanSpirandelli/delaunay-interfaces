@@ -121,7 +121,6 @@ SimplifiedSurface compute_simplified_surface(
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
-        !radii.empty(),
         alpha
     };
 }
@@ -145,7 +144,6 @@ SimplifiedSurface compute_simplified_surface(
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
-        false,
         alpha
     };
 }

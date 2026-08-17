@@ -111,7 +111,6 @@ void test_weighted_alpha() {
         auto surface = generator.compute_interface_surface(points, colors, radii, true);
         std::cout << "  Found " << surface.vertices.size() << " barycenters\n";
         std::cout << "  Found " << surface.filtration.size() << " filtration simplices\n";
-        assert(surface.weighted == true);
         assert(surface.alpha == true);
         std::cout << "  PASS\n";
     } catch (const std::exception& e) {
@@ -191,7 +190,6 @@ void test_weighted_alpha_lower_star() {
         auto lower = generator.compute_interface_surface(points, colors, radii, true, true);
 
         assert(lower.lower_star == true);
-        assert(lower.weighted == true);
         assert(lower.alpha == true);
         assert(lower.vertices.size() == upper.vertices.size());
         assert(lower.filtration.size() == upper.filtration.size());
