@@ -79,7 +79,7 @@ function draw_interface!(
 )
     mesh_geom, mesh_colors = generate_colored_mesh(surface)
 
-    if isempty(mesh_colors)
+    if isempty(mesh_colors) || isempty(GeometryBasics.faces(mesh_geom))
         return
     end
 
@@ -624,6 +624,34 @@ function draw_multicolored_edges!(
 end
 
 """
+    draw_monocolored_edges!(scene, points, colors; linewidth=2)
+
+Draw the monocolored edges of the input complex: every pair of input points
+sharing the same color label, drawn in that color. Intended for small inputs
+(single tetrahedra, bipyramids) where all point pairs are edges of the input.
+"""
+function draw_monocolored_edges!(
+    scene::LScene,
+    points::Vector{Vector{Float64}},
+    colors::Vector{Int};
+    linewidth::Real=2
+)
+    pts = [Point3f(p...) for p in points]
+
+    edge_pts = Point3f[]
+    edge_cols = RGBA[]
+    for i in 1:length(pts), j in (i+1):length(pts)
+        colors[i] == colors[j] || continue
+        push!(edge_pts, pts[i], pts[j])
+        c = RGBA(CONF_COLORMAP[mod1(colors[i], DEFAULT_NUM_COLORS)])
+        push!(edge_cols, c, c)
+    end
+
+    isempty(edge_pts) && return
+    linesegments!(scene, edge_pts; color=edge_cols, linewidth=linewidth)
+end
+
+"""
     subdivision_figure(points, colors, surface; title="", show_free_simplices=false)
 
 Create a dual-panel figure for any colored point cloud:
@@ -641,6 +669,7 @@ only for bicolored edges present in the alpha/Delaunay complex (not all pairs).
 # Keyword Arguments
 - `title::String`: Figure title (default: "")
 - `show_free_simplices::Bool`: Show free edges and isolated vertices of the subdivision (default: `false`)
+- `show_monocolored_edges::Bool`: Draw monocolored edges of the input (all same-colored point pairs); intended for single-tetrahedron inputs (default: `false`)
 
 # Returns
 - `Figure`: The GLMakie figure
@@ -650,7 +679,8 @@ function subdivision_figure(
     colors::Vector{Int},
     surface::InterfaceSurface;
     title::String="",
-    show_free_simplices::Bool=false
+    show_free_simplices::Bool=false,
+    show_monocolored_edges::Bool=false
 )
     fig = Figure()
 
@@ -671,6 +701,10 @@ function subdivision_figure(
     end
 
     draw_multicolored_edges!(scene_left, points, colors, surface)
+
+    if show_monocolored_edges
+        draw_monocolored_edges!(scene_left, points, colors)
+    end
 
     if show_free_simplices
         draw_free_simplices!(scene_left, surface)
@@ -748,7 +782,7 @@ export vertex_filtration_values, generate_colored_mesh
 export draw_interface!, interface_figure
 export draw_point_cloud!, point_cloud_figure
 export draw_free_simplices!, compute_free_simplex_data
-export draw_multicolored_edges!
+export draw_multicolored_edges!, draw_monocolored_edges!
 export interface_and_point_cloud_figure
 export filtration_figure
 export sequence_figure
