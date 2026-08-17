@@ -103,6 +103,111 @@ std::vector<std::vector<size_t>> enumerate_maximal_chains(
     return chains;
 }
 
+// Only 7 partition shapes (ordered part-size sequences as
+// compute_chromatic_partition orders them) are reachable from multicolored
+// simplices with <= 4 vertices: tets (3,1), (2,2), (2,1,1), (1,1,1,1);
+// triangles (2,1), (1,1,1); edges (1,1). The face enumeration, the inclusion
+// pairs, and the maximal chains depend only on the shape, never on the actual
+// atom ids or colors, so they are precomputed once per shape by running the
+// enumerators above on a canonical representative whose atoms are the
+// flattened part positions 0..n-1. Replaying the stored enumeration order at
+// runtime keeps vertex creation order, barycenter summation order, star-value
+// fold order, and emission order identical to the direct enumeration, so the
+// output stays bitwise identical.
+constexpr int kNumShapes = 7;
+constexpr int kMaxFaces = 11; // shape (1,1,1,1)
+
+struct FaceEntry {
+    int8_t n_parts;
+    int8_t part_sizes[4];
+    int8_t part_positions[4][4]; // canonical positions per part, in part order
+    int8_t n_atoms;
+    int8_t atom_positions[4];    // sorted union of the part positions
+};
+
+struct ShapeTable {
+    std::vector<FaceEntry> faces;                   // in enumeration order
+    std::vector<std::array<int8_t, 2>> inclusion_pairs; // (i, j) face indices
+    std::vector<std::array<int8_t, 3>> chains;      // face-index triples
+};
+
+// Index must match the shape list in build_shape_tables.
+int shape_index(int n_parts, const int* sizes) {
+    switch (n_parts) {
+        case 2:
+            if (sizes[0] == 1) return 0;                     // (1,1)
+            if (sizes[0] == 2) return sizes[1] == 1 ? 1 : 4; // (2,1) / (2,2)
+            return 3;                                        // (3,1)
+        case 3:
+            return sizes[0] == 2 ? 5 : 2;                    // (2,1,1) / (1,1,1)
+        default:
+            return 6;                                        // (1,1,1,1)
+    }
+}
+
+std::array<ShapeTable, kNumShapes> build_shape_tables() {
+    const std::vector<std::vector<int>> shapes = {
+        {1, 1}, {2, 1}, {1, 1, 1}, {3, 1}, {2, 2}, {2, 1, 1}, {1, 1, 1, 1}};
+
+    std::array<ShapeTable, kNumShapes> tables;
+    for (int s = 0; s < kNumShapes; ++s) {
+        Partition partition;
+        int pos = 0;
+        for (int size : shapes[s]) {
+            std::vector<int> part;
+            for (int i = 0; i < size; ++i) part.push_back(pos++);
+            partition.push_back(std::move(part));
+        }
+
+        auto faces = enumerate_multicolored_faces(partition);
+        ShapeTable& table = tables[s];
+        if (faces.size() > static_cast<size_t>(kMaxFaces)) {
+            throw std::logic_error("shape table exceeds kMaxFaces");
+        }
+        for (const auto& face : faces) {
+            FaceEntry e{};
+            e.n_parts = static_cast<int8_t>(face.parts.size());
+            for (size_t p = 0; p < face.parts.size(); ++p) {
+                e.part_sizes[p] = static_cast<int8_t>(face.parts[p].size());
+                for (size_t i = 0; i < face.parts[p].size(); ++i) {
+                    e.part_positions[p][i] = static_cast<int8_t>(face.parts[p][i]);
+                }
+            }
+            e.n_atoms = static_cast<int8_t>(face.atoms.size());
+            for (size_t i = 0; i < face.atoms.size(); ++i) {
+                e.atom_positions[i] = static_cast<int8_t>(face.atoms[i]);
+            }
+            table.faces.push_back(e);
+        }
+
+        // Strict-inclusion pairs, in the exact (i outer, j inner) order the
+        // former per-simplex double loop found them.
+        const size_t n = faces.size();
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
+                    table.inclusion_pairs.push_back(
+                        {static_cast<int8_t>(i), static_cast<int8_t>(j)});
+                }
+            }
+        }
+
+        for (const auto& chain : enumerate_maximal_chains(faces)) {
+            if (chain.size() != 3) {
+                throw std::logic_error("maximal chain without exactly 3 levels");
+            }
+            table.chains.push_back({static_cast<int8_t>(chain[0]),
+                static_cast<int8_t>(chain[1]), static_cast<int8_t>(chain[2])});
+        }
+    }
+    return tables;
+}
+
+const std::array<ShapeTable, kNumShapes>& shape_tables() {
+    static const std::array<ShapeTable, kNumShapes> tables = build_shape_tables();
+    return tables;
+}
+
 } // namespace
 
 BarycentricSubdivision::BarycentricSubdivision(
@@ -124,21 +229,17 @@ double BarycentricSubdivision::star_value(const std::vector<double>& vals) const
     return result;
 }
 
-Point3D BarycentricSubdivision::get_barycenter(const std::vector<int>& vertices) const {
-    return compute_barycenter(points_, vertices);
-}
-
 // Barycenter position per combination: the centroid of the barycenters of
 // the parts of the combination's sub-partition. This equals the flat average
 // of the original points only when all chosen parts have equal size (e.g.
 // 1-1, 2-2); for unequal part sizes (2-1, 3-1, ...) it differs.
 BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
-    const Partition& partition,
-    const std::vector<int>& atoms
+    const int* atoms, int n_atoms,
+    const int parts[][4], const int8_t* part_sizes, int n_parts
 ) {
     AtomKey key;
     key.fill(-1);
-    std::copy(atoms.begin(), atoms.end(), key.begin());
+    std::copy(atoms, atoms + n_atoms, key.begin());
     auto it = vertex_map_.find(key);
     if (it != vertex_map_.end()) {
         return VertexInfo{it->second.first, it->second.second};
@@ -146,11 +247,16 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
 
     // The part barycenters yield both the filtration value (mean pairwise
     // distance; faces always choose >= 2 parts) and the vertex position.
-    const size_t k = partition.size();
-    std::vector<Point3D> bcs;
-    bcs.reserve(k);
-    for (const auto& part : partition) {
-        bcs.push_back(get_barycenter(part));
+    // Summation orders match the former compute_barycenter / pairwise loops
+    // exactly, keeping the results bitwise identical.
+    const size_t k = static_cast<size_t>(n_parts);
+    Point3D bcs[4];
+    for (int p = 0; p < n_parts; ++p) {
+        Point3D center = Point3D::Zero();
+        for (int s = 0; s < part_sizes[p]; ++s) {
+            center += points_[parts[p][s]];
+        }
+        bcs[p] = center / static_cast<double>(part_sizes[p]);
     }
 
     double sum = 0.0;
@@ -170,37 +276,111 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
 }
 
 void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_vertices) {
-    if (simplex_vertices.size() > 4) {
+    process_simplex_impl(simplex_vertices.data(), static_cast<int>(simplex_vertices.size()));
+}
+
+void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts) {
+    if (n_verts > 4) {
         throw std::invalid_argument(
             "process_simplex supports at most 4 vertices (edge, triangle, or tetrahedron)");
     }
-    auto partition = compute_chromatic_partition(simplex_vertices, color_labels_);
-    if (partition.size() < 2) return;
 
-    auto faces = enumerate_multicolored_faces(partition);
-    const size_t n = faces.size();
+    // Reproduce compute_chromatic_partition on fixed arrays: parts grouped in
+    // ascending color order (the std::map iteration order) with atoms appended
+    // in vertex order, then a stable sort of the parts by descending size.
+    int part_colors[4];
+    int part_atoms[4][4];
+    int part_sizes[4];
+    int n_parts = 0;
+    for (int i = 0; i < n_verts; ++i) {
+        const int v = verts[i];
+        const int c = color_labels_[v];
+        int p = 0;
+        while (p < n_parts && part_colors[p] < c) ++p;
+        if (p == n_parts || part_colors[p] != c) {
+            for (int q = n_parts; q > p; --q) {
+                part_colors[q] = part_colors[q - 1];
+                part_sizes[q] = part_sizes[q - 1];
+                std::copy(part_atoms[q - 1], part_atoms[q - 1] + 4, part_atoms[q]);
+            }
+            part_colors[p] = c;
+            part_sizes[p] = 0;
+            ++n_parts;
+        }
+        part_atoms[p][part_sizes[p]++] = v;
+    }
+    if (n_parts < 2) return;
 
-    std::vector<std::pair<int32_t, double>> vertices(n);
-    for (size_t i = 0; i < n; ++i) {
-        auto info = get_or_create_vertex(faces[i].parts, faces[i].atoms);
+    // Stable insertion sort by descending size (ties keep color order).
+    int order[4] = {0, 1, 2, 3};
+    for (int i = 1; i < n_parts; ++i) {
+        const int key = order[i];
+        int j = i;
+        while (j > 0 && part_sizes[order[j - 1]] < part_sizes[key]) {
+            order[j] = order[j - 1];
+            --j;
+        }
+        order[j] = key;
+    }
+
+    // Flattened position -> actual atom id, in part order; the canonical
+    // shape representatives use these positions as their atoms.
+    int sizes[4];
+    int pos_to_id[4];
+    int flat = 0;
+    for (int i = 0; i < n_parts; ++i) {
+        const int p = order[i];
+        sizes[i] = part_sizes[p];
+        for (int s = 0; s < part_sizes[p]; ++s) {
+            pos_to_id[flat++] = part_atoms[p][s];
+        }
+    }
+
+    const ShapeTable& table = shape_tables()[shape_index(n_parts, sizes)];
+    const int n = static_cast<int>(table.faces.size());
+
+    std::pair<int32_t, double> vertices[kMaxFaces];
+    for (int i = 0; i < n; ++i) {
+        const FaceEntry& face = table.faces[i];
+        // pos_to_id is not monotonic, so the atom ids must be re-sorted to
+        // match the sorted unions the direct enumeration produced.
+        int atoms[4];
+        for (int a = 0; a < face.n_atoms; ++a) {
+            atoms[a] = pos_to_id[face.atom_positions[a]];
+        }
+        for (int a = 1; a < face.n_atoms; ++a) {
+            const int key = atoms[a];
+            int b = a;
+            while (b > 0 && atoms[b - 1] > key) {
+                atoms[b] = atoms[b - 1];
+                --b;
+            }
+            atoms[b] = key;
+        }
+        int face_parts[4][4];
+        for (int p = 0; p < face.n_parts; ++p) {
+            for (int s = 0; s < face.part_sizes[p]; ++s) {
+                face_parts[p][s] = pos_to_id[face.part_positions[p][s]];
+            }
+        }
+        auto info = get_or_create_vertex(
+            atoms, face.n_atoms, face_parts, face.part_sizes, face.n_parts);
         vertices[i] = {info.id, info.value};
     }
 
     // Edges: one per strict inclusion between the faces' atom sets.
-    for (size_t i = 0; i < n; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-            if (i != j && is_subset(faces[i].atoms, faces[j].atoms)) {
-                int32_t a = vertices[i].first;
-                int32_t b = vertices[j].first;
-                if (a > b) std::swap(a, b);
-                dim2_.push_back({star_value(vertices[i].second, vertices[j].second), {a, b}});
-            }
-        }
+    for (const auto& pair : table.inclusion_pairs) {
+        const auto& vi = vertices[pair[0]];
+        const auto& vj = vertices[pair[1]];
+        int32_t a = vi.first;
+        int32_t b = vj.first;
+        if (a > b) std::swap(a, b);
+        dim2_.push_back({star_value(vi.second, vj.second), {a, b}});
     }
 
     // Chains always have exactly 3 elements: one per distinct atom-set size,
     // and the sizes lie in {2, 3, 4} (>= 2 atoms per face, <= 4 in total).
-    for (const auto& chain : enumerate_maximal_chains(faces)) {
+    for (const auto& chain : table.chains) {
         int32_t ids[3] = {
             vertices[chain[0]].first, vertices[chain[1]].first, vertices[chain[2]].first};
         double value = star_value(
@@ -214,7 +394,7 @@ void BarycentricSubdivision::process_simplex(const std::vector<int>& simplex_ver
 }
 
 void BarycentricSubdivision::process_tetrahedron(const Tetrahedron& tet) {
-    process_simplex({tet.begin(), tet.end()});
+    process_simplex_impl(tet.data(), 4);
 }
 
 std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() const {

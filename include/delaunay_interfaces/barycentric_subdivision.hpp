@@ -46,12 +46,18 @@ private:
         double value;
     };
 
-    Point3D get_barycenter(const std::vector<int>& vertices) const;
     void finalize_filtration();
 
-    // atoms must be the sorted union of the partition's parts; it doubles as
-    // the vertex-map key. Creation also appends the vertex's barycenter.
-    VertexInfo get_or_create_vertex(const Partition& partition, const std::vector<int>& atoms);
+    // Shared allocation-free core of process_simplex / process_tetrahedron.
+    void process_simplex_impl(const int* verts, int n_verts);
+
+    // atoms must be the sorted union of the face's parts (at most n_atoms
+    // entries); it doubles as the vertex-map key. parts[p] holds the first
+    // part_sizes[p] atom ids of part p, in part order. Creation also appends
+    // the vertex's barycenter.
+    VertexInfo get_or_create_vertex(
+        const int* atoms, int n_atoms,
+        const int parts[][4], const int8_t* part_sizes, int n_parts);
 
     // Upper star (default) takes the minimum over values, lower star the maximum.
     double star_value(double a, double b) const;
