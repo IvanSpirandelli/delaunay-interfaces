@@ -51,10 +51,16 @@ scripts/run_benchmarks.sh "one-liner describing the change"
   run's ±15% noise band. Benchmarked with two unrelated processes
   pegging 2 of 12 cores (stuck Julia LSP indexer + busy IJulia kernel);
   a first, discarded run with 3 pegged cores was uniformly ~2x slow.
-- [ ] **Iter 5 (optional) — vertex_map_ key packing**: `std::map` with
-  `vector<int>` keys → packed fixed-size key (≤ 4 atoms) in a hash map.
-  Vertex ids are assigned in creation order (map order unused), so output
-  is unchanged. Only worth it if iter 1 left the map visible in profiles.
+- [x] **Iter 5 — vertex_map_ key packing** (committed, 3ac5c56):
+  `std::map` with `vector<int>` keys → packed `std::array<int,4>` key
+  (pad -1) in an `unordered_map` with a splitmix64-mixed hash;
+  process_simplex now throws on > 4 vertices, making the documented
+  edge/triangle/tetrahedron contract explicit. Output bitwise identical
+  (verified at 1k/5k pre-commit and in the full run). Timing: raw run
+  was noisy (machine load drifted mid-suite); normalizing subdivision
+  time by the collect_ms drift of the same scenario (collect is
+  untouched by this change) gives ~1.0-1.15x on the subdivision phase.
+  Small real win, kept.
 
 Deliberately skipped: pybind `def_readonly` re-conversion caching
 (semantic change to attribute access), visualization-side performance
