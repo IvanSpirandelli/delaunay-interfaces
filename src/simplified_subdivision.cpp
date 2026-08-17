@@ -115,10 +115,10 @@ SimplifiedSurface compute_simplified_surface(
     auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radii, use_alpha);
 
     return SimplifiedSurface{
-        subdivision.get_midpoints(),
-        subdivision.get_triangles(),
-        subdivision.get_quads(),
-        subdivision.get_edges(),
+        subdivision.take_midpoints(),
+        subdivision.take_triangles(),
+        subdivision.take_quads(),
+        subdivision.take_edges(),
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),
@@ -137,10 +137,10 @@ SimplifiedSurface compute_simplified_surface(
     auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius);
 
     return SimplifiedSurface{
-        subdivision.get_midpoints(),
-        subdivision.get_triangles(),
-        subdivision.get_quads(),
-        subdivision.get_edges(),
+        subdivision.take_midpoints(),
+        subdivision.take_triangles(),
+        subdivision.take_quads(),
+        subdivision.take_edges(),
         subdivision.get_vertex_atom_indices(),
         subdivision.get_vertex_filtration(),
         std::move(mc_simplices),

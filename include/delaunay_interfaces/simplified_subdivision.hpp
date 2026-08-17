@@ -23,6 +23,12 @@ public:
     [[nodiscard]] std::vector<std::vector<int>> get_vertex_atom_indices() const;
     [[nodiscard]] std::vector<double> get_vertex_filtration() const;
 
+    // Move-out variants for result assembly; the moved-from field is spent.
+    [[nodiscard]] Points take_midpoints() { return std::move(midpoints_); }
+    [[nodiscard]] std::vector<SurfaceTriangle> take_triangles() { return std::move(triangles_); }
+    [[nodiscard]] std::vector<SurfaceQuad> take_quads() { return std::move(quads_); }
+    [[nodiscard]] std::vector<SurfaceEdge> take_edges() { return std::move(edges_); }
+
 private:
     int32_t get_or_create_vertex(int atom_a, int atom_b);
 

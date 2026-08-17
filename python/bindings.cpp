@@ -36,13 +36,13 @@ struct InterfaceSurfacePy {
     bool alpha;
     bool lower_star;
 
-    InterfaceSurfacePy(const InterfaceSurface& surface)
+    InterfaceSurfacePy(InterfaceSurface&& surface)
         : vertices(points_to_numpy(surface.vertices))
-        , filtration(surface.filtration)
-        , generating_tetrahedra(surface.generating_simplices.tetrahedra)
-        , generating_free_triangles(surface.generating_simplices.free_triangles)
-        , generating_free_edges(surface.generating_simplices.free_edges)
-        , vertex_atom_indices(surface.vertex_atom_indices)
+        , filtration(std::move(surface.filtration))
+        , generating_tetrahedra(std::move(surface.generating_simplices.tetrahedra))
+        , generating_free_triangles(std::move(surface.generating_simplices.free_triangles))
+        , generating_free_edges(std::move(surface.generating_simplices.free_edges))
+        , vertex_atom_indices(std::move(surface.vertex_atom_indices))
         , alpha(surface.alpha)
         , lower_star(surface.lower_star) {}
 };
@@ -61,7 +61,7 @@ public:
     ) {
         Points points = numpy_to_points(points_arr);
         auto surface = gen_.compute_interface_surface(points, color_labels, radii, alpha, lower_star);
-        return InterfaceSurfacePy(surface);
+        return InterfaceSurfacePy(std::move(surface));
     }
 
     InterfaceSurfacePy compute_interface_surface_uniform(
@@ -72,7 +72,7 @@ public:
     ) {
         Points points = numpy_to_points(points_arr);
         auto surface = gen_.compute_interface_surface(points, color_labels, radius, lower_star);
-        return InterfaceSurfacePy(surface);
+        return InterfaceSurfacePy(std::move(surface));
     }
 
     Tetrahedra get_multicolored_tetrahedra(
@@ -105,7 +105,7 @@ std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtr
     Points points = numpy_to_points(points_arr);
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
         points, color_labels, radii, alpha, lower_star);
-    return {points_to_numpy(vertices), filtration};
+    return {points_to_numpy(vertices), std::move(filtration)};
 }
 
 std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtration_uniform_py(
@@ -117,7 +117,7 @@ std::pair<Eigen::MatrixXd, Filtration> compute_barycentric_subdivision_and_filtr
     Points points = numpy_to_points(points_arr);
     auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
         points, color_labels, radius, lower_star);
-    return {points_to_numpy(vertices), filtration};
+    return {points_to_numpy(vertices), std::move(filtration)};
 }
 
 struct SimplifiedSurfacePy {
@@ -132,16 +132,16 @@ struct SimplifiedSurfacePy {
     std::vector<FreeEdge> generating_free_edges;
     bool alpha;
 
-    SimplifiedSurfacePy(const SimplifiedSurface& surface)
+    SimplifiedSurfacePy(SimplifiedSurface&& surface)
         : vertices(points_to_numpy(surface.vertices))
-        , triangles(surface.triangles)
-        , quads(surface.quads)
-        , edges(surface.edges)
-        , vertex_atom_indices(surface.vertex_atom_indices)
-        , vertex_filtration(surface.vertex_filtration)
-        , generating_tetrahedra(surface.generating_simplices.tetrahedra)
-        , generating_free_triangles(surface.generating_simplices.free_triangles)
-        , generating_free_edges(surface.generating_simplices.free_edges)
+        , triangles(std::move(surface.triangles))
+        , quads(std::move(surface.quads))
+        , edges(std::move(surface.edges))
+        , vertex_atom_indices(std::move(surface.vertex_atom_indices))
+        , vertex_filtration(std::move(surface.vertex_filtration))
+        , generating_tetrahedra(std::move(surface.generating_simplices.tetrahedra))
+        , generating_free_triangles(std::move(surface.generating_simplices.free_triangles))
+        , generating_free_edges(std::move(surface.generating_simplices.free_edges))
         , alpha(surface.alpha) {}
 };
 
@@ -153,7 +153,7 @@ SimplifiedSurfacePy compute_simplified_surface_py(
 ) {
     Points points = numpy_to_points(points_arr);
     auto surface = compute_simplified_surface(points, color_labels, radii, alpha);
-    return SimplifiedSurfacePy(surface);
+    return SimplifiedSurfacePy(std::move(surface));
 }
 
 SimplifiedSurfacePy compute_simplified_surface_uniform_py(
@@ -163,7 +163,7 @@ SimplifiedSurfacePy compute_simplified_surface_uniform_py(
 ) {
     Points points = numpy_to_points(points_arr);
     auto surface = compute_simplified_surface(points, color_labels, radius);
-    return SimplifiedSurfacePy(surface);
+    return SimplifiedSurfacePy(std::move(surface));
 }
 
 PYBIND11_MODULE(delaunay_interfaces, m) {

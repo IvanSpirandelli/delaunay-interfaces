@@ -217,10 +217,10 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
     return result;
 }
 
-Filtration BarycentricSubdivision::get_filtration() {
-    // Sort by (dimension, value) with the simplex itself as a total-order
-    // tiebreak, making the output deterministic and equal entries adjacent
-    // so unique can drop the duplicates from shared faces.
+// Sort by (dimension, value) with the simplex itself as a total-order
+// tiebreak, making the output deterministic and equal entries adjacent
+// so unique can drop the duplicates from shared faces.
+void BarycentricSubdivision::finalize_filtration() {
     std::sort(filtration_.begin(), filtration_.end(),
         [](const auto& a, const auto& b) {
             if (std::get<0>(a).size() != std::get<0>(b).size()) {
@@ -233,8 +233,16 @@ Filtration BarycentricSubdivision::get_filtration() {
         }
     );
     filtration_.erase(std::unique(filtration_.begin(), filtration_.end()), filtration_.end());
+}
 
+Filtration BarycentricSubdivision::get_filtration() {
+    finalize_filtration();
     return filtration_;
+}
+
+Filtration BarycentricSubdivision::take_filtration() {
+    finalize_filtration();
+    return std::move(filtration_);
 }
 
 std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
@@ -250,7 +258,7 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     auto mc_simplices = detail::run_subdivision(
         subdivision, points, color_labels, radii, alpha.value_or(!radii.empty()));
 
-    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
+    return {subdivision.take_barycenters(), subdivision.take_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};
 }
 
@@ -265,7 +273,7 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     BarycentricSubdivision subdivision(points, color_labels, lower_star);
     auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius);
 
-    return {subdivision.get_barycenters(), subdivision.get_filtration(), std::move(mc_simplices),
+    return {subdivision.take_barycenters(), subdivision.take_filtration(), std::move(mc_simplices),
             subdivision.get_vertex_atom_indices()};
 }
 

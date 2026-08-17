@@ -21,6 +21,10 @@ public:
     // a copy; safe to call repeatedly.
     [[nodiscard]] Filtration get_filtration();
 
+    // Move-out variants for result assembly; the moved-from field is spent.
+    [[nodiscard]] Points take_barycenters() { return std::move(barycenters_); }
+    [[nodiscard]] Filtration take_filtration();
+
     // Atom indices for each barycenter vertex, ordered by vertex ID.
     // vertex_atom_indices[i] = sorted list of input atom indices that vertex i is the barycenter of.
     [[nodiscard]] std::vector<std::vector<int>> get_vertex_atom_indices() const;
@@ -32,6 +36,7 @@ private:
     };
 
     Point3D get_barycenter(const std::vector<int>& vertices) const;
+    void finalize_filtration();
 
     // atoms must be the sorted union of the partition's parts; it doubles as
     // the vertex-map key. Creation also appends the vertex's barycenter.
