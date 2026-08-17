@@ -481,7 +481,7 @@ function draw_multicolored_points!(
     colormap=DEFAULT_POINT_CLOUD_COLORMAP
 )
     point_positions = [Point3f(p...) for p in points]
-    colors = cgrad(colormap, DEFAULT_NUM_COLORS; categorical=true)[color_labels]
+    colors = cgrad(colormap, DEFAULT_NUM_COLORS; categorical=true)[mod1.(color_labels, DEFAULT_NUM_COLORS)]
 
     scatter!(scene, point_positions;
         color=colors,
