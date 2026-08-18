@@ -136,10 +136,10 @@ Filtration is built on binding paths only to be re-flattened.
   numeric order; assert non-negativity), then order equal-value runs by
   ids. Prototype: 7.3M dim2-like entries, std::sort 535ms -> 112ms,
   output verified identical.
-- [ ] **Iter 12 — custom fixed-alpha classification** (M/L, expected
-  bitwise identical - same exact-predicate set, reordered cheap-first;
-  weighted variant must replicate the weighted predicates exactly;
-  save ~300-400ms on every alpha path): build the triangulation with
+- [x] **Iter 12 — custom fixed-alpha classification** (committed
+  bb1d992, recorded; invariants identical, in-process same-object A/B
+  exact across all 8 alpha variants; alpha collect 2.4-3.7x, 50k alpha
+  totals 0.70-0.87s -> 0.23-0.34s, delaunay drift exactly 1.00): build the triangulation with
   the Fixed_alpha bases but skip the ctor's initialize_alpha; classify
   cells as CGAL does, facets radius-test-first (Gabriel only when
   needed), edges without the global map - status computed only for
