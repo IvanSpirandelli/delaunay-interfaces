@@ -148,10 +148,10 @@ void test_simple_delaunay_lower_star() {
         // edges and triangles the lower-star value (max over faces) must
         // dominate the upper-star value (min over faces).
         std::map<SurfaceSimplex, double> upper_by_simplex;
-        for (const auto& [s, v] : upper.filtration) {
+        for (const auto& [s, v] : upper.filtration.materialized()) {
             upper_by_simplex[s] = v;
         }
-        for (const auto& [s, v] : lower.filtration) {
+        for (const auto& [s, v] : lower.filtration.materialized()) {
             auto it = upper_by_simplex.find(s);
             assert(it != upper_by_simplex.end());
             if (s.size() == 1) {
@@ -196,10 +196,10 @@ void test_weighted_alpha_lower_star() {
 
         // Same property as the Delaunay lower-star test, matched by key.
         std::map<SurfaceSimplex, double> upper_by_simplex;
-        for (const auto& [s, v] : upper.filtration) {
+        for (const auto& [s, v] : upper.filtration.materialized()) {
             upper_by_simplex[s] = v;
         }
-        for (const auto& [s, v] : lower.filtration) {
+        for (const auto& [s, v] : lower.filtration.materialized()) {
             auto it = upper_by_simplex.find(s);
             assert(it != upper_by_simplex.end());
             if (s.size() == 1) {

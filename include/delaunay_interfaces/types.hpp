@@ -39,6 +39,54 @@ using SurfaceTriangle = std::array<int32_t, 3>;
 using SurfaceQuad = std::array<int32_t, 4>;
 using SurfaceEdge = std::array<int32_t, 2>;
 
+// Compact filtration storage: one POD bucket per simplex vertex count (every
+// interface simplex has 1, 2, or 3 vertices), each sorted by (value, ids) and
+// duplicate-free. Concatenating dim1|dim2|dim3 gives the global
+// (dimension, value, simplex) filtration order. This is the primary form on
+// the binding paths; the vector-of-vectors Filtration is materialized lazily
+// (and cached) for C++ callers via materialized() / take_materialized().
+struct FlatFiltration {
+    struct Dim1Entry { double value; int32_t v; };
+    struct Dim2Entry { double value; int32_t v[2]; };
+    struct Dim3Entry { double value; int32_t v[3]; };
+
+    std::vector<Dim1Entry> dim1;
+    std::vector<Dim2Entry> dim2;
+    std::vector<Dim3Entry> dim3;
+
+    [[nodiscard]] size_t size() const { return dim1.size() + dim2.size() + dim3.size(); }
+
+    // Materializes the vector-of-vectors form on first call, then returns the
+    // cached result; safe to call repeatedly.
+    [[nodiscard]] const Filtration& materialized() const {
+        if (!cached_) {
+            cached_ = true;
+            cache_.reserve(size());
+            for (const auto& e : dim1) {
+                cache_.emplace_back(SurfaceSimplex{e.v}, e.value);
+            }
+            for (const auto& e : dim2) {
+                cache_.emplace_back(SurfaceSimplex{e.v[0], e.v[1]}, e.value);
+            }
+            for (const auto& e : dim3) {
+                cache_.emplace_back(SurfaceSimplex{e.v[0], e.v[1], e.v[2]}, e.value);
+            }
+        }
+        return cache_;
+    }
+
+    // Move-out variant for result assembly; the cache is spent afterwards
+    // (subsequent materialized() calls return an empty filtration).
+    [[nodiscard]] Filtration take_materialized() {
+        (void)materialized(); // ensure the cache is built before moving it out
+        return std::move(cache_);
+    }
+
+private:
+    mutable Filtration cache_;
+    mutable bool cached_ = false;
+};
+
 // Multicolored simplices from the complex (generating tetrahedra + free lower-dimensional)
 struct MulticoloredSimplices {
     Tetrahedra tetrahedra;
@@ -51,7 +99,8 @@ using VertexAtomIndices = std::vector<std::vector<int>>;
 
 struct InterfaceSurface {
     Points vertices;
-    Filtration filtration;
+    // Flat form; use filtration.materialized() for the vector-of-vectors view.
+    FlatFiltration filtration;
     MulticoloredSimplices generating_simplices;
     VertexAtomIndices vertex_atom_indices;
     bool alpha;

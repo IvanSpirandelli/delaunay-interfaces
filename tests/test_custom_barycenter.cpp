@@ -47,7 +47,7 @@ void test_31_interface_lies_on_bisecting_plane() {
     for (const auto& v : surface.vertices) {
         assert(approx_equal(v.y(), 0.0));
     }
-    assert(count_simplices(surface.filtration).triangles == 6);
+    assert(count_simplices(surface.filtration.materialized()).triangles == 6);
 }
 
 // 2-2 coloring with color 1 at y=-1 and color 2 at y=+1: same symmetry
@@ -70,7 +70,7 @@ void test_22_interface_lies_on_bisecting_plane() {
     for (const auto& v : surface.vertices) {
         assert(approx_equal(v.y(), 0.0));
     }
-    assert(count_simplices(surface.filtration).triangles == 8);
+    assert(count_simplices(surface.filtration.materialized()).triangles == 8);
 }
 
 // Unit tetrahedron, all colors distinct: the 11 barycenters are exactly the

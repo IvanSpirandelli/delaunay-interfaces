@@ -38,7 +38,7 @@ struct InterfaceSurfacePy {
 
     InterfaceSurfacePy(InterfaceSurface&& surface)
         : vertices(points_to_numpy(surface.vertices))
-        , filtration(std::move(surface.filtration))
+        , filtration(surface.filtration.take_materialized())
         , generating_tetrahedra(std::move(surface.generating_simplices.tetrahedra))
         , generating_free_triangles(std::move(surface.generating_simplices.free_triangles))
         , generating_free_edges(std::move(surface.generating_simplices.free_edges))

@@ -1,4 +1,5 @@
 #include "delaunay_interfaces/interface_generation.hpp"
+#include "subdivision_driver.hpp"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Regular_triangulation_3.h>
@@ -368,7 +369,9 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     bool lower_star
 ) const {
     const bool use_alpha = alpha.value_or(!radii.empty());
-    auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
+    // Flat pipeline: the surface keeps the compact filtration form and only
+    // materializes the vector-of-vectors view on demand.
+    auto [vertices, filtration, simplices, vertex_atom_indices] = detail::compute_subdivision_flat(
         points, color_labels, radii, use_alpha, lower_star
     );
 
@@ -382,7 +385,7 @@ InterfaceSurface InterfaceGenerator::compute_interface_surface(
     double radius,
     bool lower_star
 ) const {
-    auto [vertices, filtration, simplices, vertex_atom_indices] = compute_barycentric_subdivision_and_filtration(
+    auto [vertices, filtration, simplices, vertex_atom_indices] = detail::compute_subdivision_flat(
         points, color_labels, radius, lower_star
     );
 

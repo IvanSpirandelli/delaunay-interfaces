@@ -8,6 +8,25 @@
 
 namespace delaunay_interfaces::detail {
 
+// Full barycentric pipeline returning the compact flat filtration (defined
+// in barycentric_subdivision.cpp). The public tuple API and
+// compute_interface_surface both build on these; only the former
+// materializes the vector-of-vectors form.
+[[nodiscard]] std::tuple<Points, FlatFiltration, MulticoloredSimplices, VertexAtomIndices>
+compute_subdivision_flat(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii,
+    std::optional<bool> alpha,
+    bool lower_star);
+
+[[nodiscard]] std::tuple<Points, FlatFiltration, MulticoloredSimplices, VertexAtomIndices>
+compute_subdivision_flat(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool lower_star);
+
 inline void validate_inputs(
     const Points& points,
     const ColorLabels& color_labels,

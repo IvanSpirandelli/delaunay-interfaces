@@ -448,7 +448,7 @@ void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts)
         int32_t a = vi.first;
         int32_t b = vj.first;
         if (a > b) std::swap(a, b);
-        dim2_.push_back({star_value(vi.second, vj.second), {a, b}});
+        flat_.dim2.push_back({star_value(vi.second, vj.second), {a, b}});
     }
 
     // Chains always have exactly 3 elements: one per distinct atom-set size,
@@ -462,7 +462,7 @@ void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts)
         if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
         if (ids[1] > ids[2]) std::swap(ids[1], ids[2]);
         if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
-        dim3_.push_back({value, {ids[0], ids[1], ids[2]}});
+        flat_.dim3.push_back({value, {ids[0], ids[1], ids[2]}});
     }
 }
 
@@ -484,30 +484,35 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
 
 // Sort each bucket by (value, simplex) — a total order, making the output
 // deterministic and equal entries adjacent so unique can drop the duplicates
-// from shared faces — then materialize the public Filtration once as
-// dim1|dim2|dim3, which reproduces the global (dimension, value, simplex)
-// order of the former single-vector sort exactly.
+// from shared faces. The sorted buckets ARE the result (flat_ is the primary
+// form); the public vector-of-vectors Filtration is materialized lazily by
+// FlatFiltration as dim1|dim2|dim3, which reproduces the global
+// (dimension, value, simplex) order of the former single-vector sort exactly.
 void BarycentricSubdivision::finalize_filtration() {
     if (finalized_) return;
     finalized_ = true;
+
+    using Dim1Entry = FlatFiltration::Dim1Entry;
+    using Dim2Entry = FlatFiltration::Dim2Entry;
+    using Dim3Entry = FlatFiltration::Dim3Entry;
 
     // Vertex singletons are emitted here, once, instead of per processed
     // simplex: every map entry was created for some simplex that would have
     // pushed its singleton, so the entry set (and hence the sorted, deduped
     // output) is unchanged. Duplicate-free by construction, so no unique.
-    dim1_.reserve(vertex_map_.size());
+    flat_.dim1.reserve(vertex_map_.size());
     for (const auto& [key, id_val] : vertex_map_) {
         (void)key;
-        dim1_.push_back({id_val.second, id_val.first});
+        flat_.dim1.push_back({id_val.second, id_val.first});
     }
-    sort_bucket(dim1_,
+    sort_bucket(flat_.dim1,
         [](const Dim1Entry& a, const Dim1Entry& b) {
             if (a.value != b.value) return a.value < b.value;
             return a.v < b.v;
         },
         [](const Dim1Entry& a, const Dim1Entry& b) { return a.v < b.v; });
 
-    sort_bucket(dim2_,
+    sort_bucket(flat_.dim2,
         [](const Dim2Entry& a, const Dim2Entry& b) {
             if (a.value != b.value) return a.value < b.value;
             if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
@@ -517,12 +522,12 @@ void BarycentricSubdivision::finalize_filtration() {
             if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
             return a.v[1] < b.v[1];
         });
-    dim2_.erase(std::unique(dim2_.begin(), dim2_.end(),
+    flat_.dim2.erase(std::unique(flat_.dim2.begin(), flat_.dim2.end(),
         [](const Dim2Entry& a, const Dim2Entry& b) {
             return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
-        }), dim2_.end());
+        }), flat_.dim2.end());
 
-    sort_bucket(dim3_,
+    sort_bucket(flat_.dim3,
         [](const Dim3Entry& a, const Dim3Entry& b) {
             if (a.value != b.value) return a.value < b.value;
             if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
@@ -534,38 +539,63 @@ void BarycentricSubdivision::finalize_filtration() {
             if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
             return a.v[2] < b.v[2];
         });
-    dim3_.erase(std::unique(dim3_.begin(), dim3_.end(),
+    flat_.dim3.erase(std::unique(flat_.dim3.begin(), flat_.dim3.end(),
         [](const Dim3Entry& a, const Dim3Entry& b) {
             return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1]
                 && a.v[2] == b.v[2];
-        }), dim3_.end());
-
-    filtration_.reserve(dim1_.size() + dim2_.size() + dim3_.size());
-    for (const auto& e : dim1_) {
-        filtration_.emplace_back(SurfaceSimplex{e.v}, e.value);
-    }
-    for (const auto& e : dim2_) {
-        filtration_.emplace_back(SurfaceSimplex{e.v[0], e.v[1]}, e.value);
-    }
-    for (const auto& e : dim3_) {
-        filtration_.emplace_back(SurfaceSimplex{e.v[0], e.v[1], e.v[2]}, e.value);
-    }
-
-    // The buckets are spent; release their memory.
-    dim1_ = {};
-    dim2_ = {};
-    dim3_ = {};
+        }), flat_.dim3.end());
 }
 
 Filtration BarycentricSubdivision::get_filtration() {
     finalize_filtration();
-    return filtration_;
+    return flat_.materialized();
 }
 
 Filtration BarycentricSubdivision::take_filtration() {
     finalize_filtration();
-    return std::move(filtration_);
+    return flat_.take_materialized();
 }
+
+FlatFiltration BarycentricSubdivision::take_flat_filtration() {
+    finalize_filtration();
+    return std::move(flat_);
+}
+
+namespace detail {
+
+std::tuple<Points, FlatFiltration, MulticoloredSimplices, VertexAtomIndices> compute_subdivision_flat(
+    const Points& points,
+    const ColorLabels& color_labels,
+    const Radii& radii,
+    std::optional<bool> alpha,
+    bool lower_star
+) {
+    validate_inputs(points, color_labels, radii);
+
+    BarycentricSubdivision subdivision(points, color_labels, lower_star);
+    auto mc_simplices = run_subdivision(
+        subdivision, points, color_labels, radii, alpha.value_or(!radii.empty()));
+
+    return {subdivision.take_barycenters(), subdivision.take_flat_filtration(), std::move(mc_simplices),
+            subdivision.get_vertex_atom_indices()};
+}
+
+std::tuple<Points, FlatFiltration, MulticoloredSimplices, VertexAtomIndices> compute_subdivision_flat(
+    const Points& points,
+    const ColorLabels& color_labels,
+    double radius,
+    bool lower_star
+) {
+    validate_inputs(points, color_labels, Radii{});
+
+    BarycentricSubdivision subdivision(points, color_labels, lower_star);
+    auto mc_simplices = run_subdivision(subdivision, points, color_labels, radius);
+
+    return {subdivision.take_barycenters(), subdivision.take_flat_filtration(), std::move(mc_simplices),
+            subdivision.get_vertex_atom_indices()};
+}
+
+} // namespace detail
 
 std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
     const Points& points,
@@ -574,14 +604,10 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     std::optional<bool> alpha,
     bool lower_star
 ) {
-    detail::validate_inputs(points, color_labels, radii);
-
-    BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    auto mc_simplices = detail::run_subdivision(
-        subdivision, points, color_labels, radii, alpha.value_or(!radii.empty()));
-
-    return {subdivision.take_barycenters(), subdivision.take_filtration(), std::move(mc_simplices),
-            subdivision.get_vertex_atom_indices()};
+    auto [vertices, flat, mc_simplices, vertex_atom_indices] = detail::compute_subdivision_flat(
+        points, color_labels, radii, alpha, lower_star);
+    return {std::move(vertices), flat.take_materialized(), std::move(mc_simplices),
+            std::move(vertex_atom_indices)};
 }
 
 std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute_barycentric_subdivision_and_filtration(
@@ -590,13 +616,10 @@ std::tuple<Points, Filtration, MulticoloredSimplices, VertexAtomIndices> compute
     double radius,
     bool lower_star
 ) {
-    detail::validate_inputs(points, color_labels, Radii{});
-
-    BarycentricSubdivision subdivision(points, color_labels, lower_star);
-    auto mc_simplices = detail::run_subdivision(subdivision, points, color_labels, radius);
-
-    return {subdivision.take_barycenters(), subdivision.take_filtration(), std::move(mc_simplices),
-            subdivision.get_vertex_atom_indices()};
+    auto [vertices, flat, mc_simplices, vertex_atom_indices] = detail::compute_subdivision_flat(
+        points, color_labels, radius, lower_star);
+    return {std::move(vertices), flat.take_materialized(), std::move(mc_simplices),
+            std::move(vertex_atom_indices)};
 }
 
 } // namespace delaunay_interfaces

@@ -22,19 +22,23 @@ public:
     void reserve(size_t vertices, size_t edges, size_t chains) {
         barycenters_.reserve(vertices);
         vertex_map_.reserve(vertices);
-        dim2_.reserve(edges);
-        dim3_.reserve(chains);
+        flat_.dim2.reserve(edges);
+        flat_.dim3.reserve(chains);
     }
 
     [[nodiscard]] const Points& get_barycenters() const { return barycenters_; }
 
     // Sorts and deduplicates the accumulated entries (once), then returns
-    // a copy of the materialized filtration; safe to call repeatedly.
+    // a copy of the lazily materialized filtration; safe to call repeatedly.
     [[nodiscard]] Filtration get_filtration();
 
     // Move-out variants for result assembly; the moved-from field is spent.
     [[nodiscard]] Points take_barycenters() { return std::move(barycenters_); }
     [[nodiscard]] Filtration take_filtration();
+
+    // Move-out of the sorted flat form without materializing the
+    // vector-of-vectors; the flat storage (and any cache) is spent.
+    [[nodiscard]] FlatFiltration take_flat_filtration();
 
     // Atom indices for each barycenter vertex, ordered by vertex ID.
     // vertex_atom_indices[i] = sorted list of input atom indices that vertex i is the barycenter of.
@@ -90,22 +94,14 @@ private:
     int32_t next_vertex_id_ = 0;
 
     // Per-dimension POD accumulation buckets (every emitted simplex has 1, 2,
-    // or 3 vertices). dim2_/dim3_ may hold duplicates from shared faces of
-    // adjacent tetrahedra; duplicate entries are exact copies (values derive
-    // from the vertex ids alone), so finalize_filtration's per-bucket
-    // sort + unique removes them. dim1_ (vertex singletons) is filled from
-    // vertex_map_ during finalization and is duplicate-free by construction.
-    struct Dim1Entry { double value; int32_t v; };
-    struct Dim2Entry { double value; int32_t v[2]; };
-    struct Dim3Entry { double value; int32_t v[3]; };
-    std::vector<Dim1Entry> dim1_;
-    std::vector<Dim2Entry> dim2_;
-    std::vector<Dim3Entry> dim3_;
-
-    // Materialized once by finalize_filtration from the sorted buckets;
-    // concatenating dim1|dim2|dim3 gives the (dimension, value, simplex)
-    // global order directly.
-    Filtration filtration_;
+    // or 3 vertices), stored directly in the FlatFiltration that becomes the
+    // surface's primary filtration form. flat_.dim2/dim3 may hold duplicates
+    // from shared faces of adjacent tetrahedra; duplicate entries are exact
+    // copies (values derive from the vertex ids alone), so
+    // finalize_filtration's per-bucket sort + unique removes them. flat_.dim1
+    // (vertex singletons) is filled from vertex_map_ during finalization and
+    // is duplicate-free by construction.
+    FlatFiltration flat_;
     bool finalized_ = false;
 };
 

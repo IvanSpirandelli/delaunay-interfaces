@@ -52,7 +52,7 @@ void test_all_distinct_colors() {
 
     // Count triangles in filtration (simplices with 3 vertices)
     size_t num_triangles = 0;
-    for (const auto& [simplex, value] : surface.filtration) {
+    for (const auto& [simplex, value] : surface.filtration.materialized()) {
         if (simplex.size() == 3) {
             num_triangles++;
         }
@@ -100,7 +100,7 @@ void test_filtration_structure() {
     size_t num_edges = 0;
     size_t num_triangles = 0;
 
-    for (const auto& [simplex, value] : surface.filtration) {
+    for (const auto& [simplex, value] : surface.filtration.materialized()) {
         if (simplex.size() == 1) num_vertices++;
         else if (simplex.size() == 2) num_edges++;
         else if (simplex.size() == 3) num_triangles++;

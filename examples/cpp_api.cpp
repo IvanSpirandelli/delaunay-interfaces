@@ -51,8 +51,9 @@ int main() {
 
         // Show some filtration values
         std::cout << "  First 10 filtration simplices:\n";
-        for (size_t i = 0; i < std::min(size_t(10), surface.filtration.size()); ++i) {
-            const auto& [simplex, value] = surface.filtration[i];
+        const auto& filtration = surface.filtration.materialized();
+        for (size_t i = 0; i < std::min(size_t(10), filtration.size()); ++i) {
+            const auto& [simplex, value] = filtration[i];
             std::cout << "    Simplex (dim=" << simplex.size()-1 << "): value=" << value << "\n";
         }
     }
