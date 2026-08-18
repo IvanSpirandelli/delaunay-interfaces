@@ -2,12 +2,11 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Regular_triangulation_3.h>
-#include <CGAL/Fixed_alpha_shape_3.h>
-#include <CGAL/Fixed_alpha_shape_vertex_base_3.h>
 #include <CGAL/Fixed_alpha_shape_cell_base_3.h>
 #include <CGAL/Regular_triangulation_vertex_base_3.h>
 #include <CGAL/Regular_triangulation_cell_base_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
+#include <CGAL/Triangulation_utils_3.h>
 #include <stdexcept>
 
 namespace delaunay_interfaces {
@@ -24,19 +23,28 @@ using RtVb = CGAL::Triangulation_vertex_base_with_info_3<int, Kernel, CGAL::Regu
 using RtTds = CGAL::Triangulation_data_structure_3<RtVb, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
 using RegularTriangulation = CGAL::Regular_triangulation_3<Kernel, RtTds>;
 
-using AsVb = CGAL::Fixed_alpha_shape_vertex_base_3<Kernel, RtVb>;
+// Alpha-path triangulations: the plain regular / Delaunay triangulation with
+// the Fixed_alpha cell base, whose per-cell and per-facet classification
+// slots our own classification pass fills in. CGAL::Fixed_alpha_shape_3 is no
+// longer constructed — its initialize_alpha classifies every simplex up front
+// (Gabriel predicate on nearly all facets before the cheap radius test, edge
+// statuses for all edges in a global std::map) while the collection below
+// needs only three queries. All classification semantics are replicated from
+// CGAL 6.1 <CGAL/Fixed_alpha_shape_3.h>; line references below are into that
+// header.
 using AsCb = CGAL::Fixed_alpha_shape_cell_base_3<Kernel, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
-using AsTds = CGAL::Triangulation_data_structure_3<AsVb, AsCb>;
+using AsTds = CGAL::Triangulation_data_structure_3<RtVb, AsCb>;
 using AsRt = CGAL::Regular_triangulation_3<Kernel, AsTds>;
-using WeightedAlphaShape = CGAL::Fixed_alpha_shape_3<AsRt>;
 using IndexedWeightedPoint = std::pair<WeightedPoint, int>;
 
-using UaVb = CGAL::Fixed_alpha_shape_vertex_base_3<Kernel, DtVb>;
 using UaCb = CGAL::Fixed_alpha_shape_cell_base_3<Kernel, CGAL::Delaunay_triangulation_cell_base_3<Kernel>>;
-using UaTds = CGAL::Triangulation_data_structure_3<UaVb, UaCb>;
+using UaTds = CGAL::Triangulation_data_structure_3<DtVb, UaCb>;
 using UaDt = CGAL::Delaunay_triangulation_3<Kernel, UaTds>;
-using UnweightedAlphaShape = CGAL::Fixed_alpha_shape_3<UaDt>;
 using IndexedPoint = std::pair<Kernel::Point_3, int>;
+
+using CGAL::internal::EXTERIOR;
+using CGAL::internal::INTERIOR;
+using CGAL::internal::SINGULAR;
 
 template <class VertexIndices>
 static bool is_multicolored(const VertexIndices& indices, const ColorLabels& color_labels) {
@@ -109,24 +117,83 @@ static std::vector<IndexedPoint> make_indexed_points(const Points& points) {
     return ipoints;
 }
 
+// The classification predicate, selected as in
+// CGAL::internal::Simplex_classif_predicate (Fixed_alpha_shape_3.h:44-63):
+// squared-radius comparison for the unweighted case, the weighted
+// (power-distance) comparison for the regular case. Same kernel functors, so
+// the filtered exact predicates give bit-identical answers.
+static Kernel::Compare_squared_radius_3 alpha_predicate(const UaDt& t) {
+    return t.geom_traits().compare_squared_radius_3_object();
+}
+
+static Kernel::Compare_weighted_squared_radius_3 alpha_predicate(const AsRt& t) {
+    return t.geom_traits().compare_weighted_squared_radius_3_object();
+}
+
+// Classify every cell: EXTERIOR for infinite cells, otherwise INTERIOR iff
+// the predicate on its four vertices vs alpha is != POSITIVE. Mirrors
+// set_cell_status (Fixed_alpha_shape_3.h:816-820) calling
+// is_gabriel_simplex_in_alpha_complex(Cell_handle) (lines 672-682): same
+// functor, same vertex(0..3) argument order.
+template <class Triangulation>
+static void classify_cells(Triangulation& t, double alpha) {
+    const auto in_complex = alpha_predicate(t);
+    for (auto cit = t.all_cells_begin(); cit != t.all_cells_end(); ++cit) {
+        if (t.is_infinite(cit)) {
+            cit->set_classification_type(EXTERIOR);
+        } else {
+            cit->set_classification_type(
+                in_complex(cit->vertex(0)->point(), cit->vertex(1)->point(),
+                           cit->vertex(2)->point(), cit->vertex(3)->point(),
+                           alpha) != CGAL::POSITIVE
+                    ? INTERIOR : EXTERIOR);
+        }
+    }
+}
+
 // Multicolored simplices of an alpha complex (weighted or unweighted).
 // Free simplices are exactly the SINGULAR ones: in the alpha complex but
 // not a face of any higher-dimensional simplex of the complex. (A
 // multicolored face of an in-complex simplex is always covered by a
 // collected multicolored simplex, since any simplex containing a
 // multicolored face is itself multicolored.)
-template <class AlphaShape>
-static MulticoloredSimplices collect_from_alpha_shape(
-    const AlphaShape& as,
-    const ColorLabels& color_labels
+//
+// SINGULAR-ness is computed here instead of by Fixed_alpha_shape_3, with the
+// identical exact predicates evaluated cheap-first — each status is a pure
+// conjunction, so the order of evaluation cannot change the outcome:
+//   facet SINGULAR (set_facet_classification_type, Fixed_alpha_shape_3.h:
+//   835-873)  iff  no incident cell INTERIOR, is_Gabriel(f), and the radius
+//   predicate on its vertex triple vs alpha is != POSITIVE;
+//   edge SINGULAR (compute_edge_status, lines 887-916)  iff  every finite
+//   incident facet EXTERIOR, is_Gabriel(c,i,j), and the radius predicate on
+//   its two vertices vs alpha is != POSITIVE.
+// "Every finite incident facet EXTERIOR" is tested as "no incident cell
+// INTERIOR and no finite incident facet SINGULAR": a facet of an INTERIOR
+// cell is INTERIOR or REGULAR, and once every incident cell is non-INTERIOR
+// each finite incident facet is either SINGULAR or EXTERIOR.
+template <class Triangulation>
+static MulticoloredSimplices collect_from_alpha_complex(
+    Triangulation& t,
+    const ColorLabels& color_labels,
+    double alpha
 ) {
     MulticoloredSimplices result;
-    result.tetrahedra = collect_multicolored_tetrahedra(as, color_labels,
-        [&as](const auto& cit) { return as.classify(cit) != AlphaShape::EXTERIOR; });
+    // Fixed_alpha_shape_3 only classifies 3-dimensional triangulations
+    // (constructor guard, Fixed_alpha_shape_3.h:562-563).
+    if (t.dimension() != 3) return result;
 
-    // Free multicolored triangles. The cheap multicolor test runs before
-    // classify.
-    for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
+    classify_cells(t, alpha);
+    const auto in_complex = alpha_predicate(t);
+
+    result.tetrahedra = collect_multicolored_tetrahedra(t, color_labels,
+        [](const auto& cit) { return cit->get_classification_type() != EXTERIOR; });
+
+    // Free multicolored triangles. The cheap multicolor test runs first, then
+    // the cell statuses, then the radius test; the Gabriel predicate only
+    // when everything else says SINGULAR. The is-SINGULAR bit is cached in
+    // both mirror facet slots (as set_facet_classification_type does) for the
+    // edge pass below.
+    for (auto fit = t.finite_facets_begin(); fit != t.finite_facets_end(); ++fit) {
         auto cell = fit->first;
         int face_idx = fit->second;
         FreeTriangle tri;
@@ -137,18 +204,67 @@ static MulticoloredSimplices collect_from_alpha_shape(
         }
         if (!is_multicolored(tri, color_labels)) continue;
 
-        if (as.classify(*fit) == AlphaShape::SINGULAR) {
-            result.free_triangles.push_back(tri);
-        }
+        // Radius arguments in vertex_triple_index order, as in
+        // is_gabriel_simplex_in_alpha_complex(Cell_handle, int)
+        // (Fixed_alpha_shape_3.h:684-693).
+        auto neighbor = cell->neighbor(face_idx);
+        const bool singular =
+            cell->get_classification_type() != INTERIOR &&
+            neighbor->get_classification_type() != INTERIOR &&
+            in_complex(
+                cell->vertex(CGAL::Triangulation_utils_3::vertex_triple_index(face_idx, 0))->point(),
+                cell->vertex(CGAL::Triangulation_utils_3::vertex_triple_index(face_idx, 1))->point(),
+                cell->vertex(CGAL::Triangulation_utils_3::vertex_triple_index(face_idx, 2))->point(),
+                alpha) != CGAL::POSITIVE &&
+            t.is_Gabriel(*fit);
+
+        const auto status = singular ? SINGULAR : EXTERIOR;
+        cell->set_facet_classification_type(face_idx, status);
+        neighbor->set_facet_classification_type(neighbor->index(cell), status);
+
+        if (singular) result.free_triangles.push_back(tri);
     }
 
-    // Free multicolored edges, multicolor test first as above.
-    for (auto eit = as.finite_edges_begin(); eit != as.finite_edges_end(); ++eit) {
+    // Free multicolored edges, multicolor test first as above. Every facet
+    // incident to a multicolored edge contains that edge's two differently
+    // colored vertices, hence is multicolored, hence its is-SINGULAR bit was
+    // cached by the facet pass.
+    for (auto eit = t.finite_edges_begin(); eit != t.finite_edges_end(); ++eit) {
         auto cell = eit->first;
         FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
         if (!is_multicolored(edge, color_labels)) continue;
 
-        if (as.classify(*eit) == AlphaShape::SINGULAR) {
+        auto ccirc = t.incident_cells(cell, eit->second, eit->third);
+        auto cdone = ccirc;
+        bool candidate = true;
+        do {
+            if (ccirc->get_classification_type() == INTERIOR) {
+                candidate = false;
+                break;
+            }
+        } while (++ccirc != cdone);
+        if (!candidate) continue;
+
+        // Infinite incident facets are skipped exactly as in
+        // compute_edge_status (Fixed_alpha_shape_3.h:899).
+        auto fcirc = t.incident_facets(cell, eit->second, eit->third);
+        auto fdone = fcirc;
+        do {
+            if (!t.is_infinite(*fcirc) &&
+                fcirc->first->get_facet_classification_type(fcirc->second) == SINGULAR) {
+                candidate = false;
+                break;
+            }
+        } while (++fcirc != fdone);
+        if (!candidate) continue;
+
+        // Radius arguments as in is_gabriel_simplex_in_alpha_complex
+        // (Cell_handle, int, int) (Fixed_alpha_shape_3.h:700-708); Gabriel
+        // call as in line 912.
+        if (in_complex(cell->vertex(eit->second)->point(),
+                       cell->vertex(eit->third)->point(),
+                       alpha) != CGAL::POSITIVE &&
+            t.is_Gabriel(cell, eit->second, eit->third)) {
             result.free_edges.push_back(edge);
         }
     }
@@ -191,8 +307,8 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     const Radii& radii
 ) const {
     auto wpoints = make_indexed_weighted_points(points, radii);
-    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0);
-    return collect_from_alpha_shape(as, color_labels);
+    AsRt rt(wpoints.begin(), wpoints.end());
+    return collect_from_alpha_complex(rt, color_labels, 0.0);
 }
 
 // Uniform-radius alpha complex: with equal weights the regular triangulation
@@ -205,8 +321,8 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_uniform
     double radius
 ) const {
     auto ipoints = make_indexed_points(points);
-    UnweightedAlphaShape as(ipoints.begin(), ipoints.end(), radius * radius);
-    return collect_from_alpha_shape(as, color_labels);
+    UaDt dt(ipoints.begin(), ipoints.end());
+    return collect_from_alpha_complex(dt, color_labels, radius * radius);
 }
 
 MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices(
