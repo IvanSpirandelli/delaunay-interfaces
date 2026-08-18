@@ -55,9 +55,14 @@ CLAUDE.md
 formalism/
 
 
-# Benchmark visualization: scripts and measurement data are tracked;
-# local venv, compiled driver, and generated images are not (the canonical
-# README figure lives in assets/).
+# Benchmarks: only history.json and the scripts needed to run the suite and
+# regenerate the README figure are tracked. Per-run result files, the local
+# optimization worklog, and regenerable measurement/plot artifacts stay
+# local (the canonical README figure lives in assets/).
+benchmarks/results/
+benchmarks/OPTIMIZATION_PLAN.md
 benchmarks/visualization/.venv/
 benchmarks/visualization/readme_bench
 benchmarks/visualization/*.png
+benchmarks/visualization/bench_results.json
+benchmarks/visualization/plot_history.py
