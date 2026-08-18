@@ -55,5 +55,9 @@ CLAUDE.md
 formalism/
 
 
-# Local benchmark visualization (generated plots, venv)
-benchmarks/visualization/
+# Benchmark visualization: scripts and measurement data are tracked;
+# local venv, compiled driver, and generated images are not (the canonical
+# README figure lives in assets/).
+benchmarks/visualization/.venv/
+benchmarks/visualization/readme_bench
+benchmarks/visualization/*.png

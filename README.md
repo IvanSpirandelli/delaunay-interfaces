@@ -208,6 +208,38 @@ auto weighted_surface = gen.compute_interface_surface(points, colors, radii);
 auto uniform_surface = gen.compute_interface_surface(points, colors, 0.5);
 ```
 
+## Profiling
+
+The figure below shows the end-to-end cost of `compute_interface_surface` —
+point cloud in, interface surface out — on uniform random four-color clouds
+(four colors exercise every chromatic partition shape a tetrahedron can
+have). Each point is the mean of 10 runs on an Apple M-series laptop, the
+band the min–max spread across those runs; both axes are logarithmic, so the
+parallel straight lines mean near-linear scaling in practice. The weighted
+variants use per-point radii jittered ±20% around half the cloud's median
+filtration scale, which is also the radius of the uniform alpha variant. The
+pie charts break one 50,000-point computation per pipeline into its main
+phases, measured with a sampling profiler on the library call alone.
+
+![Interface generation performance](assets/readme_performance.png)
+
+The two pipelines run the same code but hit different bottlenecks because
+they feed the subdivision very different volumes. The full Delaunay pipeline
+subdivides every multicolored tetrahedron of the whole triangulation (at
+50,000 four-color points: hundreds of thousands of tetrahedra, millions of
+filtration entries), so barycentric subdivision and filtration sorting
+dominate. The alpha complex at half the median scale keeps only a few
+thousand generating simplices, so its time goes into building the same
+50,000-point triangulation and classifying every facet and edge against the
+alpha threshold, while subdivision and sorting are nearly free. As the alpha
+radius approaches the maximal circumradius occurring in the Delaunay
+triangulation, the alpha complex fills in toward the full complex and the two
+profiles converge.
+
+To regenerate: `benchmarks/visualization/` contains the measurement driver
+(`readme_bench.cpp`, build line in its header), the plot script
+(`readme_performance.py`, needs matplotlib), and the profile snapshot data.
+
 ## Dependencies
 
 - C++17 compiler

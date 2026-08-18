@@ -1,0 +1,17 @@
+{
+  "provenance": "macOS `sample` (10s @ 1ms) of a loop calling compute_interface_surface on a 50,000-point four-color cloud (fixed seeds), one process per pipeline, commit c71964c, 2026-08-18. Top-of-stack CPU samples, idle waits excluded. Point cloud in -> interface out only; no benchmark harness.",
+  "note": "Filtration sorting runs on 3 threads, so its wall-clock share is smaller than its CPU share. 'Unattributed' is deduplicated/inlined template symbols the sampler could not name.",
+  "input": "50,000 points, four colors",
+  "categories": [
+    "Triangulation build",
+    "Classification + collection",
+    "Subdivision generation",
+    "Filtration sorting",
+    "Memory allocator",
+    "Other / unattributed"
+  ],
+  "pipelines": {
+    "full Delaunay (807 ms/run)": [10.6, 0.2, 28.9, 33.9, 18.1, 8.3],
+    "alpha complex (287 ms/run)": [31.7, 42.3, 2.7, 1.6, 3.6, 18.1]
+  }
+}
