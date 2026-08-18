@@ -127,8 +127,11 @@ predicate on ~96% of facets before the cheap radius test, plus a
 global std::map over all edges); the public vector-of-vectors
 Filtration is built on binding paths only to be re-flattened.
 
-- [ ] **Iter 11 — radix-sort the finalization buckets** (S/M, bitwise
-  identical, save ~650-700ms distinct / ~370ms two at 50k): stable LSD
+- [x] **Iter 11 — radix-sort the finalization buckets** (committed
+  c7f32d6, recorded; byte-identical output proven by full-filtration
+  A/B dump at 20k; delaunay totals 1.4-1.5x — 50k two 1.05s -> 0.73s,
+  distinct 1.73s -> 1.16s; alpha flat ~1.0x, its buckets hit the
+  std::sort fallback as designed): stable LSD
   radix on the value's IEEE bit pattern (values >= 0, so bit order =
   numeric order; assert non-negativity), then order equal-value runs by
   ids. Prototype: 7.3M dim2-like entries, std::sort 535ms -> 112ms,
