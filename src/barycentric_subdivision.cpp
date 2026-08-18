@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <future>
 #include <stdexcept>
 
 namespace delaunay_interfaces {
@@ -474,9 +475,13 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
     std::vector<std::vector<int>> result(next_vertex_id_);
     for (const auto& [key, id_val] : vertex_map_) {
         auto& atoms = result[id_val.first];
-        for (int a : key) {
-            if (a < 0) break;
-            atoms.push_back(a);
+        int n_atoms = 0;
+        while (n_atoms < static_cast<int>(key.size()) && key[n_atoms] >= 0) {
+            ++n_atoms;
+        }
+        atoms.reserve(n_atoms);
+        for (int a = 0; a < n_atoms; ++a) {
+            atoms.push_back(key[a]);
         }
     }
     return result;
@@ -500,50 +505,77 @@ void BarycentricSubdivision::finalize_filtration() {
     // simplex: every map entry was created for some simplex that would have
     // pushed its singleton, so the entry set (and hence the sorted, deduped
     // output) is unchanged. Duplicate-free by construction, so no unique.
-    flat_.dim1.reserve(vertex_map_.size());
-    for (const auto& [key, id_val] : vertex_map_) {
-        (void)key;
-        flat_.dim1.push_back({id_val.second, id_val.first});
+    auto finalize_dim1 = [this] {
+        flat_.dim1.reserve(vertex_map_.size());
+        for (const auto& [key, id_val] : vertex_map_) {
+            (void)key;
+            flat_.dim1.push_back({id_val.second, id_val.first});
+        }
+        sort_bucket(flat_.dim1,
+            [](const Dim1Entry& a, const Dim1Entry& b) {
+                if (a.value != b.value) return a.value < b.value;
+                return a.v < b.v;
+            },
+            [](const Dim1Entry& a, const Dim1Entry& b) { return a.v < b.v; });
+    };
+
+    auto finalize_dim2 = [this] {
+        sort_bucket(flat_.dim2,
+            [](const Dim2Entry& a, const Dim2Entry& b) {
+                if (a.value != b.value) return a.value < b.value;
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                return a.v[1] < b.v[1];
+            },
+            [](const Dim2Entry& a, const Dim2Entry& b) {
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                return a.v[1] < b.v[1];
+            });
+        flat_.dim2.erase(std::unique(flat_.dim2.begin(), flat_.dim2.end(),
+            [](const Dim2Entry& a, const Dim2Entry& b) {
+                return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
+            }), flat_.dim2.end());
+    };
+
+    auto finalize_dim3 = [this] {
+        sort_bucket(flat_.dim3,
+            [](const Dim3Entry& a, const Dim3Entry& b) {
+                if (a.value != b.value) return a.value < b.value;
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
+                return a.v[2] < b.v[2];
+            },
+            [](const Dim3Entry& a, const Dim3Entry& b) {
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
+                return a.v[2] < b.v[2];
+            });
+        flat_.dim3.erase(std::unique(flat_.dim3.begin(), flat_.dim3.end(),
+            [](const Dim3Entry& a, const Dim3Entry& b) {
+                return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1]
+                    && a.v[2] == b.v[2];
+            }), flat_.dim3.end());
+    };
+
+    // The three buckets are disjoint POD arrays and each pipeline is
+    // sequential within its bucket, so running them concurrently is
+    // deterministic by construction: dim1 only reads vertex_map_, dim2/dim3
+    // touch nothing but their own vector, and sort_bucket's scratch buffer is
+    // a local. The result is bitwise identical to the sequential order. Small
+    // inputs skip the thread spawns, which would cost more than they save.
+    constexpr size_t kParallelMinEntries = 50000;
+    const size_t total_entries =
+        vertex_map_.size() + flat_.dim2.size() + flat_.dim3.size();
+    if (total_entries < kParallelMinEntries) {
+        finalize_dim1();
+        finalize_dim2();
+        finalize_dim3();
+    } else {
+        auto dim2_done = std::async(std::launch::async, finalize_dim2);
+        auto dim3_done = std::async(std::launch::async, finalize_dim3);
+        finalize_dim1();
+        dim2_done.get();
+        dim3_done.get();
     }
-    sort_bucket(flat_.dim1,
-        [](const Dim1Entry& a, const Dim1Entry& b) {
-            if (a.value != b.value) return a.value < b.value;
-            return a.v < b.v;
-        },
-        [](const Dim1Entry& a, const Dim1Entry& b) { return a.v < b.v; });
-
-    sort_bucket(flat_.dim2,
-        [](const Dim2Entry& a, const Dim2Entry& b) {
-            if (a.value != b.value) return a.value < b.value;
-            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-            return a.v[1] < b.v[1];
-        },
-        [](const Dim2Entry& a, const Dim2Entry& b) {
-            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-            return a.v[1] < b.v[1];
-        });
-    flat_.dim2.erase(std::unique(flat_.dim2.begin(), flat_.dim2.end(),
-        [](const Dim2Entry& a, const Dim2Entry& b) {
-            return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
-        }), flat_.dim2.end());
-
-    sort_bucket(flat_.dim3,
-        [](const Dim3Entry& a, const Dim3Entry& b) {
-            if (a.value != b.value) return a.value < b.value;
-            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-            if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
-            return a.v[2] < b.v[2];
-        },
-        [](const Dim3Entry& a, const Dim3Entry& b) {
-            if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-            if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
-            return a.v[2] < b.v[2];
-        });
-    flat_.dim3.erase(std::unique(flat_.dim3.begin(), flat_.dim3.end(),
-        [](const Dim3Entry& a, const Dim3Entry& b) {
-            return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1]
-                && a.v[2] == b.v[2];
-        }), flat_.dim3.end());
 }
 
 Filtration BarycentricSubdivision::get_filtration() {
