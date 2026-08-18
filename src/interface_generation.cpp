@@ -2,9 +2,9 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Regular_triangulation_3.h>
-#include <CGAL/Alpha_shape_3.h>
-#include <CGAL/Alpha_shape_vertex_base_3.h>
-#include <CGAL/Alpha_shape_cell_base_3.h>
+#include <CGAL/Fixed_alpha_shape_3.h>
+#include <CGAL/Fixed_alpha_shape_vertex_base_3.h>
+#include <CGAL/Fixed_alpha_shape_cell_base_3.h>
 #include <CGAL/Regular_triangulation_vertex_base_3.h>
 #include <CGAL/Regular_triangulation_cell_base_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
@@ -24,18 +24,18 @@ using RtVb = CGAL::Triangulation_vertex_base_with_info_3<int, Kernel, CGAL::Regu
 using RtTds = CGAL::Triangulation_data_structure_3<RtVb, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
 using RegularTriangulation = CGAL::Regular_triangulation_3<Kernel, RtTds>;
 
-using AsVb = CGAL::Alpha_shape_vertex_base_3<Kernel, RtVb>;
-using AsCb = CGAL::Alpha_shape_cell_base_3<Kernel, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
+using AsVb = CGAL::Fixed_alpha_shape_vertex_base_3<Kernel, RtVb>;
+using AsCb = CGAL::Fixed_alpha_shape_cell_base_3<Kernel, CGAL::Regular_triangulation_cell_base_3<Kernel>>;
 using AsTds = CGAL::Triangulation_data_structure_3<AsVb, AsCb>;
 using AsRt = CGAL::Regular_triangulation_3<Kernel, AsTds>;
-using WeightedAlphaShape = CGAL::Alpha_shape_3<AsRt>;
+using WeightedAlphaShape = CGAL::Fixed_alpha_shape_3<AsRt>;
 using IndexedWeightedPoint = std::pair<WeightedPoint, int>;
 
-using UaVb = CGAL::Alpha_shape_vertex_base_3<Kernel, DtVb>;
-using UaCb = CGAL::Alpha_shape_cell_base_3<Kernel, CGAL::Delaunay_triangulation_cell_base_3<Kernel>>;
+using UaVb = CGAL::Fixed_alpha_shape_vertex_base_3<Kernel, DtVb>;
+using UaCb = CGAL::Fixed_alpha_shape_cell_base_3<Kernel, CGAL::Delaunay_triangulation_cell_base_3<Kernel>>;
 using UaTds = CGAL::Triangulation_data_structure_3<UaVb, UaCb>;
 using UaDt = CGAL::Delaunay_triangulation_3<Kernel, UaTds>;
-using UnweightedAlphaShape = CGAL::Alpha_shape_3<UaDt>;
+using UnweightedAlphaShape = CGAL::Fixed_alpha_shape_3<UaDt>;
 using IndexedPoint = std::pair<Kernel::Point_3, int>;
 
 template <class VertexIndices>
@@ -125,7 +125,7 @@ static MulticoloredSimplices collect_from_alpha_shape(
         [&as](const auto& cit) { return as.classify(cit) != AlphaShape::EXTERIOR; });
 
     // Free multicolored triangles. The cheap multicolor test runs before
-    // classify, which is a map lookup per facet in GENERAL mode.
+    // classify.
     for (auto fit = as.finite_facets_begin(); fit != as.finite_facets_end(); ++fit) {
         auto cell = fit->first;
         int face_idx = fit->second;
@@ -191,7 +191,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_weighte
     const Radii& radii
 ) const {
     auto wpoints = make_indexed_weighted_points(points, radii);
-    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0, WeightedAlphaShape::GENERAL);
+    WeightedAlphaShape as(wpoints.begin(), wpoints.end(), 0);
     return collect_from_alpha_shape(as, color_labels);
 }
 
@@ -205,8 +205,7 @@ MulticoloredSimplices InterfaceGenerator::collect_multicolored_simplices_uniform
     double radius
 ) const {
     auto ipoints = make_indexed_points(points);
-    UnweightedAlphaShape as(ipoints.begin(), ipoints.end(), radius * radius,
-                            UnweightedAlphaShape::GENERAL);
+    UnweightedAlphaShape as(ipoints.begin(), ipoints.end(), radius * radius);
     return collect_from_alpha_shape(as, color_labels);
 }
 
