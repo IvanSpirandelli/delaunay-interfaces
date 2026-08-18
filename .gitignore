@@ -54,3 +54,6 @@ julia/Manifest.toml
 CLAUDE.md
 formalism/
 
+
+# Local benchmark visualization (generated plots, venv)
+benchmarks/visualization/
