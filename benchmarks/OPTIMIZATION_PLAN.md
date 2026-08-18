@@ -105,10 +105,11 @@ allocations per run in the per-tet enumeration).
   exist, so precompute face masks / inclusion pairs / chain triples per
   shape at static init. Allocation-free compute_chromatic_partition on
   fixed arrays reproducing the current (size desc, color asc) order.
-- [ ] **Iter 9 — alpha classification** (M, alpha scenarios only,
-  expected value-identical but NOT guaranteed bitwise — threshold
-  predicates replace constructed radii; validate counts/filtration_sum
-  and test_alpha_construction carefully): `Alpha_shape_3` GENERAL mode
+- [x] **Iter 9 — alpha classification** (committed 5cd80d8, recorded;
+  invariants exactly identical at ALL sizes incl. 50k — the feared
+  threshold flips did not materialize on these inputs; alpha collect
+  1.6-2.4x, 50k alpha totals 1.3-1.65s -> 0.70-0.86s; untouched
+  delaunay drift 0.999 — cleanest run of the series): `Alpha_shape_3` GENERAL mode
   builds four maps + a spectrum we never use; `CGAL::Fixed_alpha_shape_3`
   classifies cells/facets/vertices as O(1) field reads. ~1.5s of the
   50k alpha collect is classification overhead.
