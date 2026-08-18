@@ -17,7 +17,7 @@ An interactive visualization is available on [my website](https://ivanspirandell
 4. **Barycentric Subdivision**: Create interface simplices from partition barycenters
 5. **Filtration Values**: Assign values based on distances between color barycenters
 
-The algorithm assumes points in general position and works for any number of colors. Below is a visualization of the four possible colorings of a multicolored tetrahedron and the corresponding interfaces.
+The algorithm assumes points in general position and works for any number of colors. Below is a visualization of the four possible colorings of a multicolored tetrahedron and the corresponding interfaces. Larger interfaces are pieces like these glued together along edges defined by incident generating tetrahedra.
 The interface construction is written in C++. Bindings for Julia and Python are available. See the rest of the README for build instructions.
 
 ![Tetrahedron partition examples](assets/3d_example_blue_2x2_nolabels.png)
