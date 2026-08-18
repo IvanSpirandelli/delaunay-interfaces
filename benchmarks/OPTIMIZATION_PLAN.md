@@ -116,11 +116,15 @@ allocations per run in the per-tet enumeration).
 - [ ] **Iter 10 (optional) — deterministic parallel subdivision** (L):
   chunk tets, thread-local vertex tables, merge in chunk order to
   reproduce global creation order exactly; only after iters 6-8.
-- [ ] **Anytime, orthogonal — Julia wrapper allocations** (S):
-  `flat[idx:idx+k-1] .+ Int32(1)` allocates twice per simplex (~13M
-  allocations at 30k); replace with preallocated vector + explicit
-  loop; same at vertex_atom_indices; sizehint the push! loop. Expect
-  0.8-1.3s of the 2.6s wrapper_ms at 30k.
+- [x] **Anytime, orthogonal — Julia wrapper allocations** (committed
+  e5355a1, recorded): preallocated decode loops replace the
+  slice+broadcast pattern; wrapper_ms at 30k 1.14s -> 0.64s (1.78x),
+  10k 1.49x; the 1k wrapper number is GC/JIT-jitter-dominated and not
+  meaningful. Element/type-identical output verified in-process.
+  Observation from verification: the C++ alpha pipeline's RAW simplex
+  ordering differs across processes (address-dependent CGAL internals);
+  all invariants and the value-sorted filtration stay identical, but
+  cross-process raw diffs are not a usable verification tool.
 
 Investigated and rejected: cross-tet structural dedup (residual dim-2/3
 duplication is only 1.2x after iter 6's singleton removal, not worth a
