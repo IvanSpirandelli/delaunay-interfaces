@@ -72,7 +72,11 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
     for i in 1:n_simplices
         k = flat_simplices[idx]
         idx += 1
-        filtration[i] = (flat_simplices[idx:idx+k-1] .+ Int32(1), simplex_values[i])
+        s = Vector{Int32}(undef, k)
+        @inbounds for j in 1:k
+            s[j] = flat_simplices[idx+j-1] + Int32(1)
+        end
+        filtration[i] = (s, simplex_values[i])
         idx += k
     end
 
@@ -104,11 +108,16 @@ function InterfaceSurface(cxx_surface::InterfaceSurfaceCxx)
     # Extract vertex-to-atom mapping (convert 0-based to 1-based)
     flat_vai = collect(get_vertex_atom_indices_flat(cxx_surface))
     vertex_atom_indices = Vector{Vector{Int}}()
+    sizehint!(vertex_atom_indices, n_verts)
     idx = 1
     while idx <= length(flat_vai)
         n_atoms = flat_vai[idx]
         idx += 1
-        push!(vertex_atom_indices, flat_vai[idx:idx+n_atoms-1] .+ 1)
+        atoms = Vector{Int}(undef, n_atoms)
+        @inbounds for j in 1:n_atoms
+            atoms[j] = flat_vai[idx+j-1] + 1
+        end
+        push!(vertex_atom_indices, atoms)
         idx += n_atoms
     end
 
