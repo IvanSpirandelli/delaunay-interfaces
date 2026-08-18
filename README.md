@@ -224,7 +224,7 @@ phases, measured with a sampling profiler on the library call alone.
 ![Interface generation performance](assets/readme_performance.png)
 
 The two constructions hit different bottlenecks because
-they feed the subdivision very different volumes. The full Delaunay pipeline
+they feed the subdivision very different volumes. The full Delaunay calculation
 subdivides every multicolored tetrahedron of the whole triangulation (at
 50,000 four-color points: hundreds of thousands of tetrahedra, millions of
 filtration entries), so barycentric subdivision and filtration sorting
