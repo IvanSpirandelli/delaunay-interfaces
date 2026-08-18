@@ -3196,5 +3196,251 @@
     662.946542
    ]
   }
+ },
+ {
+  "commit_id": "11a97ef",
+  "branch": "restructure-examples",
+  "date": "2026-08-18T09:28:56",
+  "note": "flat primary filtration, lazy materialization (iter 13)",
+  "tests": {
+   "1000/distinct/delaunay": [
+    2.37904,
+    18.4812
+   ],
+   "1000/distinct/delaunay_weighted_half": [
+    2.36408,
+    20.9213
+   ],
+   "1000/distinct/alpha_weighted_half": [
+    4.60704,
+    6.14496
+   ],
+   "1000/distinct/alpha_uniform_half": [
+    4.51958,
+    6.18154
+   ],
+   "1000/distinct/delaunay_weighted_quarter": [
+    2.27763,
+    18.7044
+   ],
+   "1000/distinct/alpha_weighted_quarter": [
+    4.41021,
+    4.45596
+   ],
+   "1000/distinct/alpha_uniform_quarter": [
+    4.01717,
+    4.25988
+   ],
+   "5000/distinct/delaunay": [
+    12.5137,
+    97.653
+   ],
+   "5000/distinct/delaunay_weighted_half": [
+    12.62,
+    95.505
+   ],
+   "5000/distinct/alpha_weighted_half": [
+    24.8135,
+    32.1326
+   ],
+   "5000/distinct/alpha_uniform_half": [
+    23.5278,
+    31.3833
+   ],
+   "5000/distinct/delaunay_weighted_quarter": [
+    12.3543,
+    97.9314
+   ],
+   "5000/distinct/alpha_weighted_quarter": [
+    22.8641,
+    23.649
+   ],
+   "5000/distinct/alpha_uniform_quarter": [
+    22.4437,
+    22.7005
+   ],
+   "20000/distinct/delaunay": [
+    51.7451,
+    431.385
+   ],
+   "20000/distinct/delaunay_weighted_half": [
+    51.2346,
+    425.683
+   ],
+   "20000/distinct/alpha_weighted_half": [
+    99.46,
+    130.241
+   ],
+   "20000/distinct/alpha_uniform_half": [
+    96.4013,
+    126.839
+   ],
+   "20000/distinct/delaunay_weighted_quarter": [
+    51.171,
+    443.889
+   ],
+   "20000/distinct/alpha_weighted_quarter": [
+    96.6762,
+    97.7099
+   ],
+   "20000/distinct/alpha_uniform_quarter": [
+    91.964,
+    94.524
+   ],
+   "50000/distinct/delaunay": [
+    131.129,
+    1161.56
+   ],
+   "50000/distinct/delaunay_weighted_half": [
+    130.893,
+    1150.72
+   ],
+   "50000/distinct/alpha_weighted_half": [
+    259.205,
+    342.38
+   ],
+   "50000/distinct/alpha_uniform_half": [
+    253.743,
+    333.614
+   ],
+   "50000/distinct/delaunay_weighted_quarter": [
+    132.913,
+    1162.52
+   ],
+   "50000/distinct/alpha_weighted_quarter": [
+    252.772,
+    258.09
+   ],
+   "50000/distinct/alpha_uniform_quarter": [
+    243.24,
+    248.83
+   ],
+   "1000/two/delaunay": [
+    2.34104,
+    12.0999
+   ],
+   "1000/two/delaunay_weighted_half": [
+    2.31833,
+    11.9753
+   ],
+   "1000/two/alpha_weighted_half": [
+    4.20967,
+    4.47704
+   ],
+   "1000/two/alpha_uniform_half": [
+    4.08392,
+    4.50462
+   ],
+   "1000/two/delaunay_weighted_quarter": [
+    2.31438,
+    11.9988
+   ],
+   "1000/two/alpha_weighted_quarter": [
+    4.03204,
+    3.7615
+   ],
+   "1000/two/alpha_uniform_quarter": [
+    3.80846,
+    3.82942
+   ],
+   "5000/two/delaunay": [
+    12.6527,
+    64.3212
+   ],
+   "5000/two/delaunay_weighted_half": [
+    12.6187,
+    63.7291
+   ],
+   "5000/two/alpha_weighted_half": [
+    22.4385,
+    24.2697
+   ],
+   "5000/two/alpha_uniform_half": [
+    21.8384,
+    23.5471
+   ],
+   "5000/two/delaunay_weighted_quarter": [
+    12.6509,
+    64.0935
+   ],
+   "5000/two/alpha_weighted_quarter": [
+    21.5742,
+    21.5541
+   ],
+   "5000/two/alpha_uniform_quarter": [
+    20.7355,
+    20.8484
+   ],
+   "20000/two/delaunay": [
+    52.7023,
+    273.485
+   ],
+   "20000/two/delaunay_weighted_half": [
+    52.3289,
+    270.247
+   ],
+   "20000/two/alpha_weighted_half": [
+    93.4942,
+    100.163
+   ],
+   "20000/two/alpha_uniform_half": [
+    90.1757,
+    96.4254
+   ],
+   "20000/two/delaunay_weighted_quarter": [
+    52.3816,
+    272.43
+   ],
+   "20000/two/alpha_weighted_quarter": [
+    89.7757,
+    89.2617
+   ],
+   "20000/two/alpha_uniform_quarter": [
+    86.7854,
+    86.7561
+   ],
+   "50000/two/delaunay": [
+    133.523,
+    752.303
+   ],
+   "50000/two/delaunay_weighted_half": [
+    133.059,
+    745.803
+   ],
+   "50000/two/alpha_weighted_half": [
+    241.134,
+    259.427
+   ],
+   "50000/two/alpha_uniform_half": [
+    235.191,
+    251.594
+   ],
+   "50000/two/delaunay_weighted_quarter": [
+    133.325,
+    751.67
+   ],
+   "50000/two/alpha_weighted_quarter": [
+    236.019,
+    237.393
+   ],
+   "50000/two/alpha_uniform_quarter": [
+    226.719,
+    227.883
+   ]
+  },
+  "julia_boundary": {
+   "1000": [
+    15.628,
+    53.574833
+   ],
+   "10000": [
+    174.450792,
+    191.993709
+   ],
+   "30000": [
+    582.513375,
+    488.112167
+   ]
+  }
  }
 ]

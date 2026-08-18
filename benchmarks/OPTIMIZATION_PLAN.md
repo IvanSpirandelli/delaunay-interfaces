@@ -145,9 +145,12 @@ Filtration is built on binding paths only to be re-flattened.
   needed), edges without the global map - status computed only for
   multicolored edges, Gabriel only when all incident facets are
   EXTERIOR.
-- [ ] **Iter 13 — flat internal filtration, lazy public Filtration**
-  (M, C++ struct field becomes accessor or additive API; save
-  ~90-155ms C++ and ~170-250ms off the 30k Julia boundary): bindings
+- [x] **Iter 13 — flat internal filtration, lazy public Filtration**
+  (committed 11a97ef, recorded; InterfaceSurface.filtration is now
+  FlatFiltration with lazy .materialized() — the one API change of the
+  series, external C++ field-iterators need that one-line switch;
+  Julia/Python byte-identical; 30k Julia boundary cxx 1.15x,
+  wrapper 1.36x — now 0.58s + 0.49s; core neutral by design): bindings
   consume the flat form directly; vector-of-vectors materialized only
   for C++ callers on demand.
 - [ ] **Iter 14 — parallel finalization** (S/M, deterministic by
