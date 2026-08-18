@@ -210,8 +210,8 @@ auto uniform_surface = gen.compute_interface_surface(points, colors, 0.5);
 
 ## Profiling
 
-The figure below shows the end-to-end cost of `compute_interface_surface` —
-point cloud in, interface surface out — on uniform random four-color clouds
+The figure below shows the cost of `compute_interface_surface` (point cloud in, interface surface out) 
+on uniform random four-color clouds
 (four colors exercise every chromatic partition shape a tetrahedron can
 have). Each point is the mean of 10 runs on an Apple M-series laptop, the
 band the min–max spread across those runs; both axes are logarithmic, so the
