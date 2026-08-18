@@ -153,11 +153,13 @@ Filtration is built on binding paths only to be re-flattened.
   wrapper 1.36x — now 0.58s + 0.49s; core neutral by design): bindings
   consume the flat form directly; vector-of-vectors materialized only
   for C++ callers on demand.
-- [ ] **Iter 14 — parallel finalization** (S/M, deterministic by
-  construction - independent buckets on 3 threads; after iter 11; save
-  ~60-100ms).
-- [ ] **Iter 15 — vertex_atom_indices exact reserve** (S, bitwise
-  identical, ~45ms distinct).
+- [x] **Iters 14+15 — parallel finalization + exact atom reserves**
+  (committed c71964c as one batch, recorded; invariants identical,
+  triple-run determinism check clean, 20k byte A/B identical; delaunay
+  totals 1.19-1.23x, alpha ~1.0 as expected. CUMULATIVE at 50k vs
+  baseline f2babcf: two-color delaunay 21-22x (13.9s -> 0.63s),
+  distinct 25-28x, alpha 8-11x (~0.23-0.32s); Julia 30k boundary
+  19.0s -> 0.91s total).
 - [ ] **Iter 16 (optional) — open-addressing vertex map** (M, bitwise
   identical, ~80-120ms distinct incl. the ~50ms unordered_map
   teardown).
