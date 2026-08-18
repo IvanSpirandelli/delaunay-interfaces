@@ -223,7 +223,7 @@ phases, measured with a sampling profiler on the library call alone.
 
 ![Interface generation performance](assets/readme_performance.png)
 
-The two pipelines run the same code but hit different bottlenecks because
+The two constructions hit different bottlenecks because
 they feed the subdivision very different volumes. The full Delaunay pipeline
 subdivides every multicolored tetrahedron of the whole triangulation (at
 50,000 four-color points: hundreds of thousands of tetrahedra, millions of
@@ -233,8 +233,8 @@ thousand generating simplices, so its time goes into building the same
 50,000-point triangulation and classifying every facet and edge against the
 alpha threshold, while subdivision and sorting are nearly free. As the alpha
 radius approaches the maximal circumradius occurring in the Delaunay
-triangulation, the alpha complex fills in toward the full complex and the two
-profiles converge.
+triangulation, the alpha complex fills in toward the full complex and converges
+toward the full Delaunay profile.
 
 To regenerate: `benchmarks/visualization/` contains the measurement driver
 (`readme_bench.cpp`, build line in its header), the plot script
