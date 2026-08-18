@@ -113,9 +113,56 @@ allocations per run in the per-tet enumeration).
   builds four maps + a spectrum we never use; `CGAL::Fixed_alpha_shape_3`
   classifies cells/facets/vertices as O(1) field reads. ~1.5s of the
   50k alpha collect is classification overhead.
-- [ ] **Iter 10 (optional) — deterministic parallel subdivision** (L):
-  chunk tets, thread-local vertex tables, merge in chunk order to
-  reproduce global creation order exactly; only after iters 6-8.
+- [-] **Iter 10 — DROPPED as specified** (2026-08-18 round-2
+  investigation): its target, the process_simplex loop, shrank to
+  ~170-265ms at 50k after iters 6-8; realistic net win ~150ms for
+  effort L, superseded by iters 11/14/16 below at far lower cost.
+
+Round-2 queue (2026-08-18, from a MEASURED profile: phase
+instrumentation + sample call graphs + a radix prototype at <= 20k,
+extrapolated by simplex count; instrumented totals matched the e5355a1
+record). Post-iter-9 profile at 50k: subdivision is 57-61% per-bucket
+std::sort; alpha collect is 61% CGAL initialize_alpha (Gabriel
+predicate on ~96% of facets before the cheap radius test, plus a
+global std::map over all edges); the public vector-of-vectors
+Filtration is built on binding paths only to be re-flattened.
+
+- [ ] **Iter 11 — radix-sort the finalization buckets** (S/M, bitwise
+  identical, save ~650-700ms distinct / ~370ms two at 50k): stable LSD
+  radix on the value's IEEE bit pattern (values >= 0, so bit order =
+  numeric order; assert non-negativity), then order equal-value runs by
+  ids. Prototype: 7.3M dim2-like entries, std::sort 535ms -> 112ms,
+  output verified identical.
+- [ ] **Iter 12 — custom fixed-alpha classification** (M/L, expected
+  bitwise identical - same exact-predicate set, reordered cheap-first;
+  weighted variant must replicate the weighted predicates exactly;
+  save ~300-400ms on every alpha path): build the triangulation with
+  the Fixed_alpha bases but skip the ctor's initialize_alpha; classify
+  cells as CGAL does, facets radius-test-first (Gabriel only when
+  needed), edges without the global map - status computed only for
+  multicolored edges, Gabriel only when all incident facets are
+  EXTERIOR.
+- [ ] **Iter 13 — flat internal filtration, lazy public Filtration**
+  (M, C++ struct field becomes accessor or additive API; save
+  ~90-155ms C++ and ~170-250ms off the 30k Julia boundary): bindings
+  consume the flat form directly; vector-of-vectors materialized only
+  for C++ callers on demand.
+- [ ] **Iter 14 — parallel finalization** (S/M, deterministic by
+  construction - independent buckets on 3 threads; after iter 11; save
+  ~60-100ms).
+- [ ] **Iter 15 — vertex_atom_indices exact reserve** (S, bitwise
+  identical, ~45ms distinct).
+- [ ] **Iter 16 (optional) — open-addressing vertex map** (M, bitwise
+  identical, ~80-120ms distinct incl. the ~50ms unordered_map
+  teardown).
+
+Round-2 rejected: iter 10 as written (above); CGAL Parallel_tag
+triangulation (~85ms, permutes vertex ids); further Julia decode
+micro-opts (measured at the one-allocation-per-simplex floor of the
+public field type - only a breaking CSR field change helps, ~45-55% of
+wrapper_ms is inherent); capacity pre-pass / uniques / delaunay
+collect / alpha tet+facet loops (all <= ~35ms). Realistic endpoint at
+50k: two-delaunay ~0.55s, distinct ~0.85s, alpha ~0.4-0.5s.
 - [x] **Anytime, orthogonal — Julia wrapper allocations** (committed
   e5355a1, recorded): preallocated decode loops replace the
   slice+broadcast pattern; wrapper_ms at 30k 1.14s -> 0.64s (1.78x),
