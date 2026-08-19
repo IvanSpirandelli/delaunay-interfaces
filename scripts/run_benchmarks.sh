@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Run the performance suite and save results stamped with branch + commit:
 #   benchmarks/results/<branch>_<sha>.json  - full record incl. invariants
-#   benchmarks/history.json                 - one entry per commit with note
-#     and per-test [collect_ms, total_ms], for tracking across iterations
 #
 # Usage: scripts/run_benchmarks.sh "one-liner describing the change"
 # Env overrides: SIZES=1000,5000 REPEATS=3 JULIA_SIZES=1000,10000 SKIP_JULIA=1
@@ -42,7 +40,7 @@ fi
 out="$outdir/${branch}_${sha}.json"
 CORE_JSON="$core_json" JULIA_JSON="$julia_json" OUT="$out" BRANCH="$branch" SHA="$sha" \
 WORKTREE="$worktree" SIZES="$SIZES" REPEATS="$REPEATS" NOTE="$NOTE" \
-HISTORY="benchmarks/history.json" python3 - <<'EOF'
+python3 - <<'EOF'
 import datetime, json, os, platform
 
 core = json.load(open(os.environ["CORE_JSON"]))
@@ -63,24 +61,6 @@ doc = {
 with open(os.environ["OUT"], "w") as f:
     json.dump(doc, f, indent=1)
 print("saved", os.environ["OUT"])
-
-# History: one entry per commit (re-running a commit replaces its entry),
-# timings only - the per-run file above keeps the invariants.
-entry = {
-    "commit_id": os.environ["SHA"],
-    "branch": os.environ["BRANCH"],
-    "date": doc["date"],
-    "note": os.environ["NOTE"],
-    "tests": {f"{r['n']}/{r['colors']}/{r['scenario']}": [r["collect_ms"], r["total_ms"]]
-              for r in core},
-    "julia_boundary": {str(r["n"]): [r["cxx_ms"], r["wrapper_ms"]] for r in julia},
-}
-path = os.environ["HISTORY"]
-history = json.load(open(path)) if os.path.exists(path) else []
-history = [h for h in history if h["commit_id"] != entry["commit_id"]] + [entry]
-with open(path, "w") as f:
-    json.dump(history, f, indent=1)
-print("appended", path)
 EOF
 
 rm -f "$core_json" "$julia_json"
