@@ -70,3 +70,10 @@ benchmarks/visualization/plot_history.py
 # Sampling profiles (scripts/profile.sh)
 benchmarks/profiles/
 build-profile/
+
+# Local benchmark logs and visualization scratch (regenerable)
+benchmarks/history.json
+benchmarks/visualization/.venv/
+benchmarks/visualization/readme_bench
+benchmarks/visualization/bench_results.json
+benchmarks/visualization/*.png
