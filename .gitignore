@@ -66,3 +66,7 @@ benchmarks/visualization/readme_bench
 benchmarks/visualization/*.png
 benchmarks/visualization/bench_results.json
 benchmarks/visualization/plot_history.py
+
+# Sampling profiles (scripts/profile.sh)
+benchmarks/profiles/
+build-profile/
