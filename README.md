@@ -12,8 +12,8 @@ An interactive visualization is available on [my website](https://ivanspirandell
 ## Algorithm
 
 1. **Delaunay/Alpha Complex**: Compute triangulation using CGAL
-2. **Filter Multicolored Tetrahedra**: Keep only tetrahedra with ≥2 colors
-3. **Chromatic Partition**: Group vertices by color within each tetrahedron
+2. **Filter Multicolored Simplices**: Keep the simplices with ≥2 colors — tetrahedra, plus triangles and edges not contained in any kept tetrahedron
+3. **Chromatic Partition**: Group vertices by color within each simplex
 4. **Barycentric Subdivision**: Create interface simplices from partition barycenters
 5. **Filtration Values**: Assign values based on distances between color barycenters
 
