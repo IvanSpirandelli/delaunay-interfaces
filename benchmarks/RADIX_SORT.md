@@ -2,7 +2,11 @@
 
 `src/filtration_sort.hpp` (`detail::sort_bucket`, used by
 `BarycentricSubdivision::finalize_filtration`) sorts each per-dimension
-filtration bucket by `(value, ids lexicographic)`. That total order makes the
+filtration bucket by `(value, ids lexicographic)`. The buckets are
+`FlatFiltration`'s dim0/dim1/dim2, named by geometric dimension: dim0
+holds the subdivision's vertex singletons, dim1 its edges (inclusion
+pairs), dim2 its triangles (maximal chains) — the top cells of the
+2-dimensional interface surface. That total order makes the
 output independent of emission order (determinism) and makes exact duplicates
 from shared tetrahedron faces adjacent, so `std::unique` can drop them.
 
@@ -17,14 +21,14 @@ cmake -S . -B build -DBUILD_BENCHMARKS=ON && cmake --build build --target benchm
 ```
 
 Representative results (Darwin arm64, median of 7): radix is 2.8–3.0x faster
-than `std::sort` on dim2 (the largest bucket; 139 ms vs 412 ms on 5.4M
-entries), 2.4–2.6x on dim3, and 5.8–6.4x on dim1, whose 16-byte entries move
+than `std::sort` on dim1 (the largest bucket; 139 ms vs 412 ms on 5.4M
+entries), 2.4–2.6x on dim2, and 5.8–6.4x on dim0, whose 16-byte entries move
 cheapest. The benchmark verifies both algorithms produce byte-identical
 output on every repeat.
 
 ## Worked example
 
-Take a tiny dim2 bucket (edge entries `{value, v[2]}`) in emission order,
+Take a tiny dim1 bucket (edge entries `{value, v[2]}`) in emission order,
 with one exact duplicate from a face shared by two adjacent tetrahedra:
 
 ```
@@ -123,7 +127,7 @@ The two `0.50 (2,3)` entries are adjacent, so `std::unique` collapses them:
 0.50   (2,3)
 ```
 
-This whole pipeline runs once per dimension bucket (dim1/dim2/dim3); above
+This whole pipeline runs once per dimension bucket (dim0/dim1/dim2); above
 50,000 total entries the three buckets are finalized concurrently
 (`std::async`, iter 14) — each thread runs the sequential algorithm on its
 own disjoint bucket, so the parallel output is bitwise identical to the

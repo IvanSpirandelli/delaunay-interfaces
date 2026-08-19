@@ -22,8 +22,8 @@ public:
     void reserve(size_t vertices, size_t edges, size_t chains) {
         barycenters_.reserve(vertices);
         vertex_map_.reserve(vertices);
-        flat_.dim2.reserve(edges);
-        flat_.dim3.reserve(chains);
+        flat_.dim1.reserve(edges);
+        flat_.dim2.reserve(chains);
     }
 
     [[nodiscard]] const Points& get_barycenters() const { return barycenters_; }
@@ -95,10 +95,10 @@ private:
 
     // Per-dimension POD accumulation buckets (every emitted simplex has 1, 2,
     // or 3 vertices), stored directly in the FlatFiltration that becomes the
-    // surface's primary filtration form. flat_.dim2/dim3 may hold duplicates
+    // surface's primary filtration form. flat_.dim1/dim2 may hold duplicates
     // from shared faces of adjacent tetrahedra; duplicate entries are exact
     // copies (values derive from the vertex ids alone), so
-    // finalize_filtration's per-bucket sort + unique removes them. flat_.dim1
+    // finalize_filtration's per-bucket sort + unique removes them. flat_.dim0
     // (vertex singletons) is filled from vertex_map_ during finalization and
     // is duplicate-free by construction.
     FlatFiltration flat_;

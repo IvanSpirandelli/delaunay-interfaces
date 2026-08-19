@@ -119,36 +119,36 @@ int main(int argc, char** argv) {
                 points, colors, Radii{}, false, false);
 
             const std::string tag = std::to_string(n) + "/" + mode;
+            using D0 = FlatFiltration::Dim0Entry;
             using D1 = FlatFiltration::Dim1Entry;
             using D2 = FlatFiltration::Dim2Entry;
-            using D3 = FlatFiltration::Dim3Entry;
+
+            bench_bucket(tag + " dim0", flat.dim0, repeats,
+                [](const D0& a, const D0& b) {
+                    if (a.value != b.value) return a.value < b.value;
+                    return a.v < b.v;
+                },
+                [](const D0& a, const D0& b) { return a.v < b.v; });
 
             bench_bucket(tag + " dim1", flat.dim1, repeats,
                 [](const D1& a, const D1& b) {
                     if (a.value != b.value) return a.value < b.value;
-                    return a.v < b.v;
+                    if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                    return a.v[1] < b.v[1];
                 },
-                [](const D1& a, const D1& b) { return a.v < b.v; });
+                [](const D1& a, const D1& b) {
+                    if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                    return a.v[1] < b.v[1];
+                });
 
             bench_bucket(tag + " dim2", flat.dim2, repeats,
                 [](const D2& a, const D2& b) {
                     if (a.value != b.value) return a.value < b.value;
                     if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                    return a.v[1] < b.v[1];
-                },
-                [](const D2& a, const D2& b) {
-                    if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                    return a.v[1] < b.v[1];
-                });
-
-            bench_bucket(tag + " dim3", flat.dim3, repeats,
-                [](const D3& a, const D3& b) {
-                    if (a.value != b.value) return a.value < b.value;
-                    if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
                     if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
                     return a.v[2] < b.v[2];
                 },
-                [](const D3& a, const D3& b) {
+                [](const D2& a, const D2& b) {
                     if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
                     if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
                     return a.v[2] < b.v[2];

@@ -41,20 +41,20 @@ using SurfaceEdge = std::array<int32_t, 2>;
 
 // Compact filtration storage: one POD bucket per simplex vertex count (every
 // interface simplex has 1, 2, or 3 vertices), each sorted by (value, ids) and
-// duplicate-free. Concatenating dim1|dim2|dim3 gives the global
+// duplicate-free. Concatenating dim0|dim1|dim2 gives the global
 // (dimension, value, simplex) filtration order. This is the primary form on
 // the binding paths; the vector-of-vectors Filtration is materialized lazily
 // (and cached) for C++ callers via materialized() / take_materialized().
 struct FlatFiltration {
-    struct Dim1Entry { double value; int32_t v; };
-    struct Dim2Entry { double value; int32_t v[2]; };
-    struct Dim3Entry { double value; int32_t v[3]; };
+    struct Dim0Entry { double value; int32_t v; };
+    struct Dim1Entry { double value; int32_t v[2]; };
+    struct Dim2Entry { double value; int32_t v[3]; };
 
+    std::vector<Dim0Entry> dim0;
     std::vector<Dim1Entry> dim1;
     std::vector<Dim2Entry> dim2;
-    std::vector<Dim3Entry> dim3;
 
-    [[nodiscard]] size_t size() const { return dim1.size() + dim2.size() + dim3.size(); }
+    [[nodiscard]] size_t size() const { return dim0.size() + dim1.size() + dim2.size(); }
 
     // Materializes the vector-of-vectors form on first call, then returns the
     // cached result; safe to call repeatedly.
@@ -62,13 +62,13 @@ struct FlatFiltration {
         if (!cached_) {
             cached_ = true;
             cache_.reserve(size());
-            for (const auto& e : dim1) {
+            for (const auto& e : dim0) {
                 cache_.emplace_back(SurfaceSimplex{e.v}, e.value);
             }
-            for (const auto& e : dim2) {
+            for (const auto& e : dim1) {
                 cache_.emplace_back(SurfaceSimplex{e.v[0], e.v[1]}, e.value);
             }
-            for (const auto& e : dim3) {
+            for (const auto& e : dim2) {
                 cache_.emplace_back(SurfaceSimplex{e.v[0], e.v[1], e.v[2]}, e.value);
             }
         }

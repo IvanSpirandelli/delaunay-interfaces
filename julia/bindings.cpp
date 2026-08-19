@@ -64,17 +64,17 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             if (i < 0 || i >= static_cast<int>(f.size())) {
                 throw std::out_of_range("Simplex index out of range");
             }
-            // Entry order is dim1|dim2|dim3, matching the materialized form.
+            // Entry order is dim0|dim1|dim2, matching the materialized form.
             size_t idx = static_cast<size_t>(i);
+            if (idx < f.dim0.size()) {
+                return SurfaceSimplex{f.dim0[idx].v};
+            }
+            idx -= f.dim0.size();
             if (idx < f.dim1.size()) {
-                return SurfaceSimplex{f.dim1[idx].v};
+                return SurfaceSimplex{f.dim1[idx].v[0], f.dim1[idx].v[1]};
             }
             idx -= f.dim1.size();
-            if (idx < f.dim2.size()) {
-                return SurfaceSimplex{f.dim2[idx].v[0], f.dim2[idx].v[1]};
-            }
-            idx -= f.dim2.size();
-            return SurfaceSimplex{f.dim3[idx].v[0], f.dim3[idx].v[1], f.dim3[idx].v[2]};
+            return SurfaceSimplex{f.dim2[idx].v[0], f.dim2[idx].v[1], f.dim2[idx].v[2]};
         })
         .method("get_simplex_value", [](const InterfaceSurface& s, int i) {
             const auto& f = s.filtration;
@@ -82,29 +82,29 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
                 throw std::out_of_range("Simplex index out of range");
             }
             size_t idx = static_cast<size_t>(i);
+            if (idx < f.dim0.size()) return f.dim0[idx].value;
+            idx -= f.dim0.size();
             if (idx < f.dim1.size()) return f.dim1[idx].value;
             idx -= f.dim1.size();
-            if (idx < f.dim2.size()) return f.dim2[idx].value;
-            idx -= f.dim2.size();
-            return f.dim3[idx].value;
+            return f.dim2[idx].value;
         })
         .method("get_all_simplex_vertices_flat", [](const InterfaceSurface& s) {
             // [k_0, v_0_0, ..., k_1, v_1_0, ...] per filtration entry,
             // in the same entry order as get_all_simplex_values. Read
-            // straight off the flat buckets (dim1|dim2|dim3 = entry order).
+            // straight off the flat buckets (dim0|dim1|dim2 = entry order).
             const auto& f = s.filtration;
             std::vector<int32_t> result;
-            result.reserve(f.dim1.size() * 2 + f.dim2.size() * 3 + f.dim3.size() * 4);
-            for (const auto& e : f.dim1) {
+            result.reserve(f.dim0.size() * 2 + f.dim1.size() * 3 + f.dim2.size() * 4);
+            for (const auto& e : f.dim0) {
                 result.push_back(1);
                 result.push_back(e.v);
             }
-            for (const auto& e : f.dim2) {
+            for (const auto& e : f.dim1) {
                 result.push_back(2);
                 result.push_back(e.v[0]);
                 result.push_back(e.v[1]);
             }
-            for (const auto& e : f.dim3) {
+            for (const auto& e : f.dim2) {
                 result.push_back(3);
                 result.push_back(e.v[0]);
                 result.push_back(e.v[1]);
@@ -116,9 +116,9 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod) {
             const auto& f = s.filtration;
             std::vector<double> result;
             result.reserve(f.size());
+            for (const auto& e : f.dim0) result.push_back(e.value);
             for (const auto& e : f.dim1) result.push_back(e.value);
             for (const auto& e : f.dim2) result.push_back(e.value);
-            for (const auto& e : f.dim3) result.push_back(e.value);
             return result;
         })
         .method("num_generating_tetrahedra", [](const InterfaceSurface& s) {

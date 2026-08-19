@@ -378,7 +378,7 @@ void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts)
         int32_t a = vi.first;
         int32_t b = vj.first;
         if (a > b) std::swap(a, b);
-        flat_.dim2.push_back({star_value(vi.second, vj.second), {a, b}});
+        flat_.dim1.push_back({star_value(vi.second, vj.second), {a, b}});
     }
 
     // Chains always have exactly 3 elements: one per distinct atom-set size,
@@ -392,7 +392,7 @@ void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts)
         if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
         if (ids[1] > ids[2]) std::swap(ids[1], ids[2]);
         if (ids[0] > ids[1]) std::swap(ids[0], ids[1]);
-        flat_.dim3.push_back({value, {ids[0], ids[1], ids[2]}});
+        flat_.dim2.push_back({value, {ids[0], ids[1], ids[2]}});
     }
 }
 
@@ -420,32 +420,49 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
 // deterministic and equal entries adjacent so unique can drop the duplicates
 // from shared faces. The sorted buckets ARE the result (flat_ is the primary
 // form); the public vector-of-vectors Filtration is materialized lazily by
-// FlatFiltration as dim1|dim2|dim3, which reproduces the global
+// FlatFiltration as dim0|dim1|dim2, which reproduces the global
 // (dimension, value, simplex) order of the former single-vector sort exactly.
 void BarycentricSubdivision::finalize_filtration() {
     if (finalized_) return;
     finalized_ = true;
 
+    using Dim0Entry = FlatFiltration::Dim0Entry;
     using Dim1Entry = FlatFiltration::Dim1Entry;
     using Dim2Entry = FlatFiltration::Dim2Entry;
-    using Dim3Entry = FlatFiltration::Dim3Entry;
 
     // Vertex singletons are emitted here, once, instead of per processed
     // simplex: every map entry was created for some simplex that would have
     // pushed its singleton, so the entry set (and hence the sorted, deduped
     // output) is unchanged. Duplicate-free by construction, so no unique.
-    auto finalize_dim1 = [this] {
-        flat_.dim1.reserve(vertex_map_.size());
+    auto finalize_dim0 = [this] {
+        flat_.dim0.reserve(vertex_map_.size());
         for (const auto& [key, id_val] : vertex_map_) {
             (void)key;
-            flat_.dim1.push_back({id_val.second, id_val.first});
+            flat_.dim0.push_back({id_val.second, id_val.first});
         }
-        detail::sort_bucket(flat_.dim1,
-            [](const Dim1Entry& a, const Dim1Entry& b) {
+        detail::sort_bucket(flat_.dim0,
+            [](const Dim0Entry& a, const Dim0Entry& b) {
                 if (a.value != b.value) return a.value < b.value;
                 return a.v < b.v;
             },
-            [](const Dim1Entry& a, const Dim1Entry& b) { return a.v < b.v; });
+            [](const Dim0Entry& a, const Dim0Entry& b) { return a.v < b.v; });
+    };
+
+    auto finalize_dim1 = [this] {
+        detail::sort_bucket(flat_.dim1,
+            [](const Dim1Entry& a, const Dim1Entry& b) {
+                if (a.value != b.value) return a.value < b.value;
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                return a.v[1] < b.v[1];
+            },
+            [](const Dim1Entry& a, const Dim1Entry& b) {
+                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
+                return a.v[1] < b.v[1];
+            });
+        flat_.dim1.erase(std::unique(flat_.dim1.begin(), flat_.dim1.end(),
+            [](const Dim1Entry& a, const Dim1Entry& b) {
+                return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
+            }), flat_.dim1.end());
     };
 
     auto finalize_dim2 = [this] {
@@ -453,57 +470,40 @@ void BarycentricSubdivision::finalize_filtration() {
             [](const Dim2Entry& a, const Dim2Entry& b) {
                 if (a.value != b.value) return a.value < b.value;
                 if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                return a.v[1] < b.v[1];
+                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
+                return a.v[2] < b.v[2];
             },
             [](const Dim2Entry& a, const Dim2Entry& b) {
                 if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                return a.v[1] < b.v[1];
+                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
+                return a.v[2] < b.v[2];
             });
         flat_.dim2.erase(std::unique(flat_.dim2.begin(), flat_.dim2.end(),
             [](const Dim2Entry& a, const Dim2Entry& b) {
-                return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1];
-            }), flat_.dim2.end());
-    };
-
-    auto finalize_dim3 = [this] {
-        detail::sort_bucket(flat_.dim3,
-            [](const Dim3Entry& a, const Dim3Entry& b) {
-                if (a.value != b.value) return a.value < b.value;
-                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
-                return a.v[2] < b.v[2];
-            },
-            [](const Dim3Entry& a, const Dim3Entry& b) {
-                if (a.v[0] != b.v[0]) return a.v[0] < b.v[0];
-                if (a.v[1] != b.v[1]) return a.v[1] < b.v[1];
-                return a.v[2] < b.v[2];
-            });
-        flat_.dim3.erase(std::unique(flat_.dim3.begin(), flat_.dim3.end(),
-            [](const Dim3Entry& a, const Dim3Entry& b) {
                 return a.value == b.value && a.v[0] == b.v[0] && a.v[1] == b.v[1]
                     && a.v[2] == b.v[2];
-            }), flat_.dim3.end());
+            }), flat_.dim2.end());
     };
 
     // The three buckets are disjoint POD arrays and each pipeline is
     // sequential within its bucket, so running them concurrently is
-    // deterministic by construction: dim1 only reads vertex_map_, dim2/dim3
+    // deterministic by construction: dim0 only reads vertex_map_, dim1/dim2
     // touch nothing but their own vector, and sort_bucket's scratch buffer is
     // a local. The result is bitwise identical to the sequential order. Small
     // inputs skip the thread spawns, which would cost more than they save.
     constexpr size_t kParallelMinEntries = 50000;
     const size_t total_entries =
-        vertex_map_.size() + flat_.dim2.size() + flat_.dim3.size();
+        vertex_map_.size() + flat_.dim1.size() + flat_.dim2.size();
     if (total_entries < kParallelMinEntries) {
+        finalize_dim0();
         finalize_dim1();
         finalize_dim2();
-        finalize_dim3();
     } else {
+        auto dim1_done = std::async(std::launch::async, finalize_dim1);
         auto dim2_done = std::async(std::launch::async, finalize_dim2);
-        auto dim3_done = std::async(std::launch::async, finalize_dim3);
-        finalize_dim1();
+        finalize_dim0();
+        dim1_done.get();
         dim2_done.get();
-        dim3_done.get();
     }
 }
 
