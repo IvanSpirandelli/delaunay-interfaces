@@ -33,10 +33,3 @@ add_executable(test_simplified test_simplified.cpp)
 target_link_libraries(test_simplified PRIVATE delaunay_interfaces)
 
 add_test(NAME SimplifiedTest COMMAND test_simplified)
-
-# Benchmark (not a test: prints timings, asserts nothing; run manually)
-option(BUILD_BENCHMARKS "Build benchmarks" OFF)
-if(BUILD_BENCHMARKS)
-    add_executable(benchmark_speed benchmark_speed.cpp)
-    target_link_libraries(benchmark_speed PRIVATE delaunay_interfaces)
-endif()

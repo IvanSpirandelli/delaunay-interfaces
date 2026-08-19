@@ -14,6 +14,7 @@ option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_JULIA_BINDINGS "Build Julia bindings (requires CxxWrap's JlCxx)" ON)
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
+option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
 find_package(CGAL REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -55,6 +56,10 @@ endif()
 
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if(BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()
 
 install(TARGETS delaunay_interfaces

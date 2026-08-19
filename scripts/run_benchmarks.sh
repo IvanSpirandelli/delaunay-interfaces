@@ -31,7 +31,7 @@ mkdir -p "$outdir"
 core_json=$(mktemp)
 julia_json=$(mktemp)
 
-./build/tests/benchmark_speed --sizes "$SIZES" --repeats "$REPEATS" --out "$core_json"
+./build/benchmarks/benchmark_speed --sizes "$SIZES" --repeats "$REPEATS" --out "$core_json"
 
 if [ -z "${SKIP_JULIA:-}" ]; then
     julia --project=julia scripts/benchmark_julia_boundary.jl "$julia_json" "$JULIA_SIZES" "$REPEATS"
