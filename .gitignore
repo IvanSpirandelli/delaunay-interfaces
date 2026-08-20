@@ -52,7 +52,6 @@ examples/*.jld2
 index/
 julia/Manifest.toml
 CLAUDE.md
-formalism/
 
 
 # Benchmarks: only history.json and the scripts needed to run the suite and
