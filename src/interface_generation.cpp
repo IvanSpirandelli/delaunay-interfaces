@@ -8,6 +8,7 @@
 #include <CGAL/Regular_triangulation_cell_base_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/Triangulation_utils_3.h>
+#include <algorithm>
 #include <stdexcept>
 
 namespace delaunay_interfaces {
@@ -203,6 +204,11 @@ static MulticoloredSimplices collect_from_alpha_complex(
             if (i == face_idx) continue;
             tri[k++] = cell->vertex(i)->info();
         }
+        // Canonical vertex order: which of the two incident cells reports the
+        // facet is decided by raw Cell_handle pointer comparison (see the
+        // note above the sorts at the end of this function), and that choice
+        // also fixes the vertex_triple order.
+        std::sort(tri.begin(), tri.end());
         if (!is_multicolored(tri, color_labels)) continue;
 
         // Radius arguments in vertex_triple_index order, as in
@@ -233,6 +239,7 @@ static MulticoloredSimplices collect_from_alpha_complex(
     for (auto eit = t.finite_edges_begin(); eit != t.finite_edges_end(); ++eit) {
         auto cell = eit->first;
         FreeEdge edge = {cell->vertex(eit->second)->info(), cell->vertex(eit->third)->info()};
+        std::sort(edge.begin(), edge.end()); // canonical, as for the facets above
         if (!is_multicolored(edge, color_labels)) continue;
 
         auto ccirc = t.incident_cells(cell, eit->second, eit->third);
@@ -270,6 +277,21 @@ static MulticoloredSimplices collect_from_alpha_complex(
         }
     }
 
+    // The two free lists are emitted in triangulation traversal order, which
+    // is not reproducible: CGAL's finite facet / edge iterators report each
+    // facet (resp. edge) from the incident cell with the *smaller pointer*
+    // (Triangulation_ds_iterators_3.h:83 and :232). Cell_handle comparison
+    // falls back to No_time_stamp::less — raw addresses — because
+    // Fixed_alpha_shape_cell_base_3 declares no Has_timestamp tag, so the
+    // Compact_container block layout, and with it the emission order, varies
+    // between two identical calls in one process. Sorting here makes the
+    // lists a function of the atom indices alone. The tetrahedra are left
+    // untouched: finite_cells_begin() is plain container order, with no
+    // pointer comparison, so it is already reproducible — and since the
+    // subdivision feeds tetrahedra first, every vertex id they create keeps
+    // its current value.
+    std::sort(result.free_triangles.begin(), result.free_triangles.end());
+    std::sort(result.free_edges.begin(), result.free_edges.end());
     return result;
 }
 
