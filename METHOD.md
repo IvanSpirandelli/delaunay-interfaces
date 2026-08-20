@@ -22,23 +22,23 @@ alpha complex. The construction itself is dimension-agnostic and works
 verbatim in $\mathbb{R}^2$ (the 2D figures below illustrate this), but the
 implementation is 3D only.
 
-Formally: points $P = \{p_1, \dots, p_n\} \subset \mathbb{R}^3$ with weights
-$W = \{w_1, \dots, w_n\} \subset \mathbb{R}$ and a coloring
-$c : P \to \{1, \dots, k\}$.
+Formally: points $P = \lbrace p_1, \dots, p_n\rbrace \subset \mathbb{R}^3$ with weights
+$W = \lbrace w_1, \dots, w_n\rbrace \subset \mathbb{R}$ and a coloring
+$c : P \to \lbrace 1, \dots, k\rbrace$.
 
 ## 2. Weighted Voronoi, Delaunay, and alpha complex
 
 The $i$-th *weighted Voronoi cell* is
 
-$$V(p_i, w_i) := \{x \in \mathbb{R}^3 \mid \pi_{p_i, w_i}(x) \leq \pi_{p_j, w_j}(x)\ \forall j\},$$
+$$V(p_i, w_i) := \lbrace x \in \mathbb{R}^3 \mid \pi_{p_i, w_i}(x) \leq \pi_{p_j, w_j}(x)\ \forall j\rbrace,$$
 
-with power distance $\pi_{p,w}(x) = \|x - p\|^2 - w$. Its dual (under general
+with power distance $\pi_{p,w}(x) = \lVert x - p\rVert^2 - w$. Its dual (under general
 position) is the *weighted Delaunay triangulation*. When each point carries a
 radius $r_i > 0$, we set $w_i = r_i^2$ and restrict each cell to the ball
 $B(p_i, r_i)$, i.e. $R(p_i, w_i) = V(p_i, w_i) \cap B(p_i, r_i)$; the *weighted
 alpha complex* is
 
-$$\mathcal{A}(P, W) = \left\{\sigma \subseteq P \ :\ \bigcap_{p_i \in \sigma} R(p_i, w_i) \neq \emptyset\right\}.$$
+$$\mathcal{A}(P, W) = \left\lbrace \sigma \subseteq P \ :\ \bigcap_{p_i \in \sigma} R(p_i, w_i) \neq \emptyset\right\rbrace.$$
 
 With uniform radii $r$ the weighted alpha complex equals the unweighted alpha
 complex with parameter $\alpha = r^2$.
@@ -49,10 +49,10 @@ Let $K$ be the (three-dimensional) Delaunay or alpha complex and
 $c$ the vertex coloring. The construction operates on the set of all
 *multicolored* simplices
 
-$$F = \{\sigma \in K \mid |c(\sigma)| > 1\},$$
+$$F = \lbrace \sigma \in K \mid |c(\sigma)| > 1\rbrace,$$
 
 i.e. simplices whose vertices span at least two colors. For such a simplex
-we write $\sigma^j = \{v \in \sigma \mid c(v) = j\}$ for its *mono-colored
+we write $\sigma^j = \lbrace v \in \sigma \mid c(v) = j\rbrace$ for its *mono-colored
 subsets*, one per color $j$ present in $\sigma$.
 
 ## 4. The interface surface
@@ -61,7 +61,7 @@ The interface surface is a simplicial complex $I$ built as follows.
 
 **Vertices.** For each $\sigma \in F$ add one vertex
 
-$$v_\sigma = \frac{1}{|\{\sigma^j \mid \sigma^j \neq \emptyset\}|} \sum_{j=1,\ \sigma^j \neq \emptyset}^{k} b(\sigma^j),$$
+$$v_\sigma = \frac{1}{|\lbrace \sigma^j \mid \sigma^j \neq \emptyset\rbrace|} \sum_{j=1,\ \sigma^j \neq \emptyset}^{k} b(\sigma^j),$$
 
 where $b(\sigma^j)$ is the barycenter of the mono-colored subset $\sigma^j$ —
 i.e. the vertex sits at the *barycenter of the barycenters* of the
@@ -103,7 +103,7 @@ separation between the color classes it mediates. For a vertex $v$
 corresponding to the sub-partition $(S'_1, \dots, S'_m)$ with part barycenters
 $\beta'_j = b(S'_j)$:
 
-$$f(v) = \binom{m}{2}^{-1} \sum_{1 \leq j < l \leq m} \|\beta'_j - \beta'_l\|,$$
+$$f(v) = \binom{m}{2}^{-1} \sum_{1 \leq j < l \leq m} \lVert \beta'_j - \beta'_l\rVert,$$
 
 the average pairwise distance between the part barycenters. Values extend to
 edges and triangles by a star filtration:
