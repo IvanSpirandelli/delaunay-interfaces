@@ -2,15 +2,6 @@
 
 This document describes the interface surface construction implemented in
 this library.
-
-![Interface surfaces on a protein trimer and a brain scan](assets/larger_examples_two_panel_blue.png)
-
-*Multicolored point clouds with interface surfaces between them shown in blue.
-(A) A trimer of the human CD40 ligand-receptor complex (PDB ID: 1aly), one
-molecule removed for visualization; the interface lies inside the volume water
-cannot reach. (B) A brain scan from the mindboggle dataset, with an interface
-surface separating the different regions.*
-
 ---
 
 ## 1. Setting
@@ -119,3 +110,11 @@ edges and triangles by a star filtration:
 
 The final interface surface is the union of the subdivisions over all
 multicolored simplices and itself a filtered simplicial complex.
+
+![Interface surfaces on a protein trimer and a brain scan](assets/larger_examples_two_panel_blue.png)
+
+*Multicolored point clouds with interface surfaces between them shown in blue.
+(A) A trimer of the human CD40 ligand-receptor complex (PDB ID: 1aly), one
+molecule removed for visualization; the interface lies inside the volume water
+cannot reach. (B) A brain scan from the mindboggle dataset, with an interface
+surface separating the different regions.*
