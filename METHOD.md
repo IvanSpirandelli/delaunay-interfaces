@@ -38,7 +38,7 @@ radius $r_i > 0$, we set $w_i = r_i^2$ and restrict each cell to the ball
 $B(p_i, r_i)$, i.e. $R(p_i, w_i) = V(p_i, w_i) \cap B(p_i, r_i)$; the *weighted
 alpha complex* is
 
-$$\mathcal{A}(P, W) = \left\lbrace \sigma \subseteq P \ :\ \bigcap_{p_i \in \sigma} R(p_i, w_i) \neq \emptyset\right\rbrace.$$
+$$\mathcal{A}(P, W) = \lbrace \sigma \subseteq P \ :\ \bigcap_{p_i \in \sigma} R(p_i, w_i) \neq \emptyset\rbrace.$$
 
 With uniform radii $r$ the weighted alpha complex equals the unweighted alpha
 complex with parameter $\alpha = r^2$.
