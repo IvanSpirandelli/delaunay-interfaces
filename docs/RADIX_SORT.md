@@ -12,19 +12,20 @@ from shared tetrahedron faces adjacent, so `std::unique` can drop them.
 
 Buckets of fewer than 10,000 entries just use `std::sort`. Larger buckets use
 a stable LSD radix sort on the value's IEEE-754 bit pattern, followed by an
-id-order fixup of equal-value runs. `benchmarks/benchmark_radix_sort.cpp`
-compares the two on real pipeline buckets:
+id-order fixup of equal-value runs. The two were compared on real pipeline
+buckets by `benchmarks/benchmark_radix_sort.cpp`, an A/B benchmark that has
+since been removed. It is preserved in the history at commit `9c7626b`, the
+last commit that contains it:
 
 ```bash
-cmake -S . -B build -DBUILD_BENCHMARKS=ON && cmake --build build --target benchmark_radix_sort -j4
-./build/benchmarks/benchmark_radix_sort            # defaults: --sizes 20000,50000 --repeats 5
+git show 9c7626b:benchmarks/benchmark_radix_sort.cpp
 ```
 
 Representative results (Darwin arm64, median of 7): radix is 2.8–3.0x faster
 than `std::sort` on dim1 (the largest bucket; 139 ms vs 412 ms on 5.4M
 entries), 2.4–2.6x on dim2, and 5.8–6.4x on dim0, whose 16-byte entries move
-cheapest. The benchmark verifies both algorithms produce byte-identical
-output on every repeat.
+cheapest. Every repeat verified that both algorithms produce byte-identical
+output.
 
 ## Worked example
 
@@ -113,7 +114,8 @@ cheap:
 
 The result now matches `std::sort` with the full `(value, ids)` comparator
 exactly — proven at scale by the byte-identical A/B dumps in the
-optimization series (iter 11) and re-verified on every benchmark run.
+optimization series (iter 11) and re-verified on every run of the benchmark
+above.
 
 ### Step 4: dedup (back in `finalize_filtration`)
 
