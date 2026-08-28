@@ -1,7 +1,9 @@
 #pragma once
 
 #include "types.hpp"
-#include <map>
+#include <array>
+#include <cstdint>
+#include <unordered_map>
 
 namespace delaunay_interfaces {
 
@@ -34,6 +36,9 @@ public:
     [[nodiscard]] std::vector<SurfaceEdge> take_edges() { return std::move(edges_); }
 
 private:
+    // Shared allocation-free core of process_simplex / process_tetrahedron.
+    void process_simplex_impl(const int* verts, int n_verts);
+
     int32_t get_or_create_vertex(int atom_a, int atom_b);
 
     const Points& points_;
@@ -44,8 +49,25 @@ private:
     std::vector<SurfaceQuad> quads_;
     std::vector<SurfaceEdge> edges_;
 
-    // Map from sorted atom pair → (vertex_id, filtration_value)
-    std::map<std::array<int, 2>, std::pair<int32_t, double>> vertex_map_;
+    // Sorted atom pair packed into a fixed-size key. Every vertex is the
+    // midpoint of one cross-color edge, so an atom pair always fits.
+    using AtomKey = std::array<int, 2>;
+    struct AtomKeyHash {
+        size_t operator()(const AtomKey& k) const {
+            uint64_t h = 0;
+            for (int a : k) {
+                // splitmix64 round per element
+                uint64_t x = h ^ (static_cast<uint64_t>(static_cast<uint32_t>(a)) + 0x9e3779b97f4a7c15ULL);
+                x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+                x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+                h = x ^ (x >> 31);
+            }
+            return static_cast<size_t>(h);
+        }
+    };
+
+    // Map from packed sorted atom pairs to (vertex_id, filtration_value)
+    std::unordered_map<AtomKey, std::pair<int32_t, double>, AtomKeyHash> vertex_map_;
     int32_t next_vertex_id_ = 0;
 };
 

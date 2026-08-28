@@ -382,43 +382,53 @@ void test_random_vertices_equal_multicolored_edges() {
     std::cout << "  PASS\n";
 }
 
+// For two colors the barycentric surface is the barycentric subdivision of the
+// simplified one — same region, more vertices — so the total areas must agree
+// exactly. Checked over several clouds so the invariant is not pinned to one
+// lucky configuration.
 void test_random_area_equality() {
     std::cout << "Test: Random Cloud — Simplified Area = Barycentric Area\n";
 
-    auto [points, colors] = make_random_2color_cloud(60, /*seed=*/42);
+    for (unsigned seed : {42u, 7u, 1234u, 99u}) {
+        for (int n : {60, 120}) {
+            auto [points, colors] = make_random_2color_cloud(n, seed);
 
-    // Barycentric surface
-    auto [bary_verts, bary_filt, bary_simp, bary_vai] =
-        compute_barycentric_subdivision_and_filtration(points, colors, Radii{}, false);
+            // Barycentric surface
+            auto [bary_verts, bary_filt, bary_simp, bary_vai] =
+                compute_barycentric_subdivision_and_filtration(points, colors, Radii{}, false);
 
-    double bary_area = 0.0;
-    for (const auto& [simplex, val] : bary_filt) {
-        if (simplex.size() == 3) {
-            bary_area += triangle_area(
-                bary_verts[simplex[0]], bary_verts[simplex[1]], bary_verts[simplex[2]]);
+            double bary_area = 0.0;
+            for (const auto& [simplex, val] : bary_filt) {
+                if (simplex.size() == 3) {
+                    bary_area += triangle_area(
+                        bary_verts[simplex[0]], bary_verts[simplex[1]], bary_verts[simplex[2]]);
+                }
+            }
+
+            // Simplified surface
+            auto surface = compute_simplified_surface(points, colors, Radii{}, false);
+
+            double simp_area = 0.0;
+            for (const auto& tri : surface.triangles) {
+                simp_area += triangle_area(
+                    surface.vertices[tri[0]], surface.vertices[tri[1]], surface.vertices[tri[2]]);
+            }
+            for (const auto& quad : surface.quads) {
+                // Quad in cyclic order → split along diagonal 0-2
+                simp_area += triangle_area(
+                    surface.vertices[quad[0]], surface.vertices[quad[1]], surface.vertices[quad[2]]);
+                simp_area += triangle_area(
+                    surface.vertices[quad[0]], surface.vertices[quad[2]], surface.vertices[quad[3]]);
+            }
+
+            const double rel_diff = std::abs(bary_area - simp_area) / bary_area;
+            std::cout << "  seed " << seed << " n " << n
+                      << ": bary " << bary_area << "  simp " << simp_area
+                      << "  rel diff " << rel_diff << "\n";
+            assert(bary_area > 0.0);
+            assert(rel_diff < 1e-10);
         }
     }
-
-    // Simplified surface
-    auto surface = compute_simplified_surface(points, colors, Radii{}, false);
-
-    double simp_area = 0.0;
-    for (const auto& tri : surface.triangles) {
-        simp_area += triangle_area(
-            surface.vertices[tri[0]], surface.vertices[tri[1]], surface.vertices[tri[2]]);
-    }
-    for (const auto& quad : surface.quads) {
-        // Quad in cyclic order → split along diagonal 0-2
-        simp_area += triangle_area(
-            surface.vertices[quad[0]], surface.vertices[quad[1]], surface.vertices[quad[2]]);
-        simp_area += triangle_area(
-            surface.vertices[quad[0]], surface.vertices[quad[2]], surface.vertices[quad[3]]);
-    }
-
-    std::cout << "  Barycentric area:  " << bary_area << "\n";
-    std::cout << "  Simplified area:   " << simp_area << "\n";
-    std::cout << "  Relative diff:     " << std::abs(bary_area - simp_area) / bary_area << "\n";
-    assert(std::abs(bary_area - simp_area) < 1e-10 * bary_area);
 
     std::cout << "  PASS\n";
 }
