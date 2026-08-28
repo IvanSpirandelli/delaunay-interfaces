@@ -122,8 +122,7 @@ static std::vector<IndexedPoint> make_indexed_points(const Points& points) {
 // The classification predicate, selected as in
 // CGAL::internal::Simplex_classif_predicate (Fixed_alpha_shape_3.h:44-63):
 // squared-radius comparison for the unweighted case, the weighted
-// (power-distance) comparison for the regular case. Same kernel functors, so
-// the filtered exact predicates give bit-identical answers.
+// (power-distance) comparison for the regular case.
 static Kernel::Compare_squared_radius_3 alpha_predicate(const UaDt& t) {
     return t.geom_traits().compare_squared_radius_3_object();
 }
@@ -161,8 +160,7 @@ static void classify_cells(Triangulation& t, double alpha) {
 // multicolored face is itself multicolored.)
 //
 // SINGULAR-ness is computed here instead of by Fixed_alpha_shape_3, with the
-// identical exact predicates evaluated cheap-first — each status is a pure
-// conjunction, so the order of evaluation cannot change the outcome:
+// identical exact predicates:
 //   facet SINGULAR (set_facet_classification_type, Fixed_alpha_shape_3.h:
 //   835-873)  iff  no incident cell INTERIOR, is_Gabriel(f), and the radius
 //   predicate on its vertex triple vs alpha is != POSITIVE;

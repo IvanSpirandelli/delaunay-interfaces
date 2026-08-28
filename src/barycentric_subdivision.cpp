@@ -1,3 +1,42 @@
+// Barycentric subdivision of multicolored simplices, and the filtration it
+// carries.
+//
+// The combinatorics of a simplex's multicolored faces depend only on how it 
+// is partitioned in terms of colors. 
+//
+// Worked example: the tetrahedron [101, 505, 202, 303], colored [5, 2, 2, 3].
+// Here 101 etc. represent ids of the points in the input point cloud.
+//
+// 1. Normalize:
+//    group by color, parts by descending size, ties by ascending color,
+//    atoms within a part in input order.
+//
+//      partition  [[505, 202], [303], [101]]   color 2 is doubled, so first;
+//      pos_to_id   [505, 202,   303,   101]    505 before 202 by input order;
+//      position       0    1      2      3     singletons by color, 3 then 5
+//
+// 2. Look up the shape. Sizes (2,1,1) -> shape_index 5, whose canonical
+//    partition is [[0,1],[2],[3]]. That table contains no atom ids at all and
+//    is shared by every (2,1,1) simplex in the run.
+//
+// 3. Translate each canonical face through pos_to_id, then re-sort:
+//
+//      parts              flattened    translated           sorted atom ids (the vertex key)
+//      [[0],[2]]       -> [0,2]     -> [505,303]         -> [303,505]
+//      [[1],[2]]       -> [1,2]     -> [202,303]         -> [202,303]
+//      [[0,1],[2]]     -> [0,1,2]   -> [505,202,303]     -> [202,303,505]
+//      [[0],[3]]       -> [0,3]     -> [505,101]         -> [101,505]
+//      [[1],[3]]       -> [1,3]     -> [202,101]         -> [101,202]
+//      [[0,1],[3]]     -> [0,1,3]   -> [505,202,101]     -> [101,202,505]
+//      [[2],[3]]       -> [2,3]     -> [303,101]         -> [101,303]
+//      [[0],[2],[3]]   -> [0,2,3]   -> [505,303,101]     -> [101,303,505]
+//      [[1],[2],[3]]   -> [1,2,3]   -> [202,303,101]     -> [101,202,303]
+//      [[0,1],[2],[3]] -> [0,1,2,3] -> [505,202,303,101] -> [101,202,303,505]
+//
+// Each of the vertex keys corresponds to an interface-surface vertex with edges 
+// connecting vertices where one vertex key is a subset of the other, 
+// which in turn corresponds to face incidence in the generating triangulation.
+
 #include "delaunay_interfaces/barycentric_subdivision.hpp"
 #include "delaunay_interfaces/chromatic_partitioning.hpp"
 #include "filtration_sort.hpp"
@@ -12,22 +51,42 @@ namespace delaunay_interfaces {
 
 namespace {
 
-// One multicolored face of the processed simplex: a choice of >= 2 parts
-// and a non-empty subset of each chosen part.
 struct MulticoloredFace {
     std::vector<std::vector<int>> parts; // the sub-partition, one entry per chosen part
     std::vector<int> atoms;              // sorted union of the chosen atom indices
 };
 
 // Enumerates every subset I of the parts with |I| >= 2, crossed with every
-// tuple of non-empty subsets of the parts in I.
+// tuple of non-empty subsets of the parts in I. All faces come back in one
+// vector, grouped by I in ascending mask order and, within a group, by the
+// subset masks of the parts in I. For shape (2,1,1) — canonical partition
+// [[0,1],[2],[3]] — the 10 faces are, one block per I:
+//
+//   parts              atoms (the flattened column above)
+//   [[0],[2]]          [0,2]
+//   [[1],[2]]          [1,2]
+//   [[0,1],[2]]        [0,1,2]
+//
+//   [[0],[3]]          [0,3]
+//   [[1],[3]]          [1,3]
+//   [[0,1],[3]]        [0,1,3]
+//
+//   [[2],[3]]          [2,3]
+//
+//   [[0],[2],[3]]      [0,2,3]
+//   [[1],[2],[3]]      [1,2,3]
+//   [[0,1],[2],[3]]    [0,1,2,3]
+
 std::vector<MulticoloredFace> enumerate_multicolored_faces(const Partition& partition) {
     const int k = static_cast<int>(partition.size());
     std::vector<MulticoloredFace> faces;
 
+    // mask runs 0 .. 2^k - 1: every k-bit number, i.e. every subset of the parts
     for (int mask = 0; mask < (1 << k); ++mask) {
         if (std::bitset<32>(mask).count() < 2) continue;
 
+        // Set bits of mask -> the chosen parts. Ascending i keeps them in
+        // partition order, so face.parts matches the parts column above.
         std::vector<int> part_indices;
         for (int i = 0; i < k; ++i) {
             if (mask & (1 << i)) part_indices.push_back(i);
@@ -106,17 +165,14 @@ std::vector<std::vector<size_t>> enumerate_maximal_chains(
     return chains;
 }
 
-// Only 7 partition shapes (ordered part-size sequences as
-// compute_chromatic_partition orders them) are reachable from multicolored
+// Only 7 partition shapes are reachable from multicolored
 // simplices with <= 4 vertices: tets (3,1), (2,2), (2,1,1), (1,1,1,1);
 // triangles (2,1), (1,1,1); edges (1,1). The face enumeration, the inclusion
 // pairs, and the maximal chains depend only on the shape, never on the actual
 // atom ids or colors, so they are precomputed once per shape by running the
 // enumerators above on a canonical representative whose atoms are the
-// flattened part positions 0..n-1. Replaying the stored enumeration order at
-// runtime keeps vertex creation order, barycenter summation order, star-value
-// fold order, and emission order identical to the direct enumeration, so the
-// output stays bitwise identical.
+// flattened part positions 0..n-1.
+
 constexpr int kNumShapes = 7;
 constexpr int kMaxFaces = 11; // shape (1,1,1,1)
 
@@ -216,7 +272,7 @@ const std::array<ShapeTable, kNumShapes>& shape_tables() {
 BarycentricSubdivision::BarycentricSubdivision(
     const Points& points,
     const ColorLabels& color_labels,
-    bool lower_star
+    bool lower_star // if true extends vertex filtration values to edges and triangles to lower star filtration. Else upper.
 ) : points_(points), color_labels_(color_labels), lower_star_(lower_star) {}
 
 double BarycentricSubdivision::star_value(double a, double b) const {
@@ -250,8 +306,6 @@ BarycentricSubdivision::VertexInfo BarycentricSubdivision::get_or_create_vertex(
 
     // The part barycenters yield both the filtration value (mean pairwise
     // distance; faces always choose >= 2 parts) and the vertex position.
-    // Summation orders match the former compute_barycenter / pairwise loops
-    // exactly, keeping the results bitwise identical.
     const size_t k = static_cast<size_t>(n_parts);
     Point3D bcs[4];
     for (int p = 0; p < n_parts; ++p) {
@@ -287,10 +341,7 @@ void BarycentricSubdivision::process_simplex_impl(const int* verts, int n_verts)
         throw std::invalid_argument(
             "process_simplex supports at most 4 vertices (edge, triangle, or tetrahedron)");
     }
-
-    // Reproduce compute_chromatic_partition on fixed arrays: parts grouped in
-    // ascending color order (the std::map iteration order) with atoms appended
-    // in vertex order, then a stable sort of the parts by descending size.
+    
     int part_colors[4];
     int part_atoms[4][4];
     int part_sizes[4];
@@ -420,8 +471,8 @@ std::vector<std::vector<int>> BarycentricSubdivision::get_vertex_atom_indices() 
 // deterministic and equal entries adjacent so unique can drop the duplicates
 // from shared faces. The sorted buckets ARE the result (flat_ is the primary
 // form); the public vector-of-vectors Filtration is materialized lazily by
-// FlatFiltration as dim0|dim1|dim2, which reproduces the global
-// (dimension, value, simplex) order of the former single-vector sort exactly.
+// FlatFiltration as dim0|dim1|dim2.
+
 void BarycentricSubdivision::finalize_filtration() {
     if (finalized_) return;
     finalized_ = true;
@@ -487,7 +538,7 @@ void BarycentricSubdivision::finalize_filtration() {
 
     // The three buckets are disjoint POD arrays and each pipeline is
     // sequential within its bucket, so running them concurrently is
-    // deterministic by construction: dim0 only reads vertex_map_, dim1/dim2
+    // deterministic: dim0 only reads vertex_map_, dim1/dim2
     // touch nothing but their own vector, and sort_bucket's scratch buffer is
     // a local. The result is bitwise identical to the sequential order. Small
     // inputs skip the thread spawns, which would cost more than they save.

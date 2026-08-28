@@ -1,6 +1,6 @@
 // Internal header: bucket sort used by BarycentricSubdivision's filtration
-// finalization, extracted so benchmarks/benchmark_radix_sort.cpp can compare
-// it against std::sort on identical data. Not part of the public API.
+// finalization. Not part of the public API. See docs/RADIX_SORT.md for the
+// algorithm and the std::sort comparison it is based on.
 #pragma once
 
 #include <algorithm>
